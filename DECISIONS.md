@@ -1,0 +1,79 @@
+# DECISIONS — hctl 裁定台账
+
+> 一条裁定一个 D 号；正文是**终态**（含全部修正后的形态），演化史与论证见「源」指向的 memo（考古层）。规范细节见 METHOD.md（规范层）；本文件是结论层（知识金字塔 D-16）。
+> 状态标记：`active` 现行 ／ `amended(D-xx)` 正文已是修改后终态、修改来源注明 ／ `superseded(D-xx)` 整体退场 ／ `deferred(P2)` 裁定通过、实装推迟 ／ `resolved` 研究义务已结清。
+> **终裁记录**：2026-07-27 用户「准」。范围 = 立项底稿（K-01..K-24）+ 补遗（K-25..K-30）+ 主笔系列（27c 基质 / 27d 建议案 / 27e 收束 / 27g 六条销账 / 27h 三条销账）+ 两堂五轮评审（grok/codex 各 a–e，全部 COMPLETE；收敛轨迹 全量→6→3→0）。D-01..D-31 与 memo 中 K-01..K-31 一一对应。
+
+---
+
+## Bootstrap 定案（D-01..D-30 ≡ K-01..K-30，立项底稿与补遗）
+
+- **D-01 三层承载** `amended(D-32)` — 事件层 per-seat 链 + 叙事层 memo lane + 变更层 PR；GitHub 页面零义务，gh 收缩为 `pr create`/`pr merge`；链接纪律「先合 memo 后落 VERDICT」升级为机器硬门（见 D-40）。〔源: 底稿 K-01〕
+- **D-02 Level-triggered 轴心** `active` — 通知只唤醒；状态=derive(git 事实) 纯函数；漏醒/多醒无害；每次调用即全量 reconcile。观测不完整 ≠ 空集（见 D-39）。〔K-02〕
+- **D-03 宽进严出** `amended(D-39)` — 唤醒宽进；判定只认结构化字段；title/自由文本永不作判据。读入侧细化为三分法（D-39）。〔K-03〕
+- **D-04 判定钉 revision** `amended` — 原「verdict 钉 head」升级为「**revision 依赖型事件必钉 `{base, head}` 全长 OID**」；pre-head 事件不伪造 head。required gate 的 verdict 须 exact `{base,head}` 匹配 merge 前快照。〔K-04；27e A2/B2〕
+- **D-05 Gate 代数** `amended` — **三可配轴**：mode(required/advisory/observe) × quorum（结构化 AST：`seat/all_of/any_of/at_least` 四节点闭集）× on_timeout(escalate/预声明 deputy/proceed)。**threshold 降为 review 参数**（展示给 gater 的裁量输入，内核只读 decision，见 D-40）。法律：freshness exact `{base,head}`；gater≠author；required 禁 silent skip；required+proceed 组合 schema 级非法。〔K-05；27e C3/C4〕
+- **D-06 活性降 UX** `active` — 无心跳义务、无全局 interrupt、无 watchdog；overdue 与 **escalated** 均为**推导事实**（无事件类型、无进程存活要求）；动作（催/deputy/cancel/re-claim）一律显式。〔K-06；27e §3.6〕
+- **D-07 任务单元 = assignment** `amended` — 原「边统一」改名：静态=`.hctl/assignments/` 冻结文件（merge 即封存=全部授权），动态=ASSIGN 事件（P2）；worker 只认 assignment。EDGE 词汇退场（名实不符）。〔K-07；27e B3〕
+- **D-08 任务分支** `amended` — author-class `work/<seat>/<slug>`，合并即死；机器名退出远端命名空间；**memo lane 独立 namespace `memo/<seat>/<slug>`**（分道后「memo 不占 slot」为结构级保证）；分支 pattern 属消费仓约定、schema 校验。〔K-08；27e B3〕
+- **D-09 单写者命名空间三粒度** `active` — 分支（一任务）、文件（一实例）、ref（一席一链）；conflict-free 靠构造不靠协调。〔K-09〕
+- **D-10 Memo lane** `amended(D-08)` — 流水账文体；内核零解析零 schema（opaque）；advisory、即合、不占 slot、永不上 author 分支；知识收敛后升格共享文档走 author 流程。〔K-10〕
+- **D-11 咨询模式** `active` — 同 brief 扇出 N 席各自落 memo 再综合；consult 义务 kind 推迟 P2（默认不 claim）。〔K-11〕
+- **D-12 Plan = 渐进固化管道** `active` — 发散(咨询)→综合(memo)→裁定(DECISIONS)→封存(assignments)→fire(人)。〔K-12〕
+- **D-13 交互模型** `amended` — hctl 是叶子命令非编排器；席位=worktree=tab；输出三形态（表格/--json/exit code）+ 自描述输出（含 obligation id 与 holder）。前台阻塞动词改名 **`wait`**（原 wake；业界词优先）；**`run` 移出内核入 adapters**（exec helper）。〔K-13；27e C8〕
+- **D-14 并发物理层** `active` — 一 seat 一常驻 worktree；checkout 权属前台；后台零 checkout（对象库直读 / scratch）；旁路发布走 plumbing。〔K-14〕
+- **D-15 Session 粒度**（推荐实践非法律）`active` — 一任务/一 gate 指派（含完整 re-gate 循环）/一咨询话题一 session；并行度放 session 内 sub-agent；session 是 cache、memory 是数据库。〔K-15〕
+- **D-16 Context 经济学** `active` — 知识金字塔（门面→现状→结论→正文→考古）；收口(closeout)为标准节点类型；brief 带指针不带语料；稳定前缀纪律。〔K-16〕
+- **D-17 执行等级第一原则** `amended(D-38/D-41)` — 违规是设计问题；四级阶梯（结构不可能/机器拒绝/机器审计/LLM 自觉）；每条不变量标注执行等级；LLM 只做选择题；最强执行是删规则。诚实降级：hooks=级③；远端 append-only=伪①→级③检测+备份；级④仅存 memo 质量与知识上迁（点名+closeout 兜底）。护栏防失误不防恶意。〔K-17；27e C6〕
+- **D-18 监听面 = ref 平面** `active` — 一条 `ls-remote` 全量覆盖；轮询只存在于 wait 期间；快照缓存可丢；P2 增 clone 级合并轮询（一 clone 一 poll leader、快照共享、退避+jitter）。〔K-18；codex ④〕
+- **D-19 驻留模式** `amended` — 驻班（wait↔work 自循环，授权=assignment，意外一律 escalate）/待命；**班次有界降级为 token 卫生建议**（永续双 fire 对正确性无害）；人的角色=排班、点火、裁决。〔K-19；K-28 修订〕
+- **D-20 轮子复用三层** `active` — 直接复用 git/GitHub/既有脚本语义；naming policy 凡有业界词不自造（新增采纳：RFC 8785 JCS、Gerrit NoteDb meta-ref 形态、fencing token、assignment）；自造仅 seat 与 memo lane；抄模型不抄部署。〔K-20〕
+- **D-21 git-appraise 处置** `resolved(D-31)` — 研究义务已执行（27c 通读）；先例与 schema 纪律继承、notes 存储不继承。〔K-21〕
+- **D-22 Harness 接入三件套** `active` — 门牌一行指针 → 共享 AGENTS.md（seat-agnostic）→ 个席补充（特例才建）；hctl help 是 canonical 文档；SKILL 薄壳可选；最好的 skill 是自描述输出。〔K-22/K-25〕
+- **D-23 归因三通道** `active` — 命名空间单写者（机器判身份）+ 证据化 trailer（模型+effort 取会话实况）+ 人读自报；GitHub actor 永不作身份判据。〔K-23〕
+- **D-24 实现形态** `active` — Python 3 stdlib 单包零 pip；配置 TOML、事件 JSON；shell 仅薄壳；batch plumbing 禁 per-object exec。〔K-24；27c〕
+- **D-25 启动文件加载协定** `active` — 门牌/共享正文/个席补充三层（详 D-22）。〔K-25〕
+- **D-26 Seat 与化身** `active` — 席位=脑子（harness×model），机器=椅子；同席多化身是一个席位；quorum 按席计票；machine/session 只作溯源（machine=hctl 安装 UUID 或别名；session 可 null），永不进 quorum/ownership/freshness/命名空间。〔K-26；codex ⑫〕
+- **D-27 双机物理模型** `active` — 两 clone 两 `.git` 零文件系统交集，交点只有 origin；同机多 tab 共享 `.git` 靠本地 CAS。〔K-27〕
+- **D-28 CLAIM 核心机制** `amended(D-33..D-36)` — 一切义务先认领后干活；席链 push 原子性=天然 mutex；具体化为 obligation identity（D-33）、状态机与恢复（D-34）、fencing（D-35）、转手（D-36）。〔K-28〕
+- **D-29 任务身份 ≠ 执行者身份** `active` — slug 永不带化身标志；椅子（worktree 本地名）可贴名牌、任务不贴；「现在谁在干」问 claim 链。〔K-29〕
+- **D-30 事件模型** `amended` — 信封：`schema_version`(int) / `type` / `actor{seat, machine, session|null}` / `created_at`(RFC3339 UTC)，discriminated union，`additionalProperties:false`，OID 只收全长。**P1 事件闭集 = CLAIM / VERDICT / CANCEL**；ASSIGN / HANDOFF / NOTE 留 P2。双时戳互证（created_at vs commit date）=级③审计位；弃 10 位 epoch 字符串（appraise workaround，27c 采纳清单被 27e C3 supersede）。〔K-30；27e C3〕
+
+## 终裁定案（D-31..D-45，三堂会审产物）
+
+- **D-31 事件层基质 = per-seat event commit chain** `active` — 每席一条线性 commit 链 `refs/coop/<seat>`，一事件一 commit；tree 含单文件 `event.json`（payload），message 放人读摘要；弃 git notes（union 合并破互斥、内容时钟排序、4/6 事件无锚——三堂同判+语料实证）。写路径：`hash-object → mktree → commit-tree → update-ref CAS（本地）→ push --force-with-lease=<ref>:<expect>（远端；创建=空 expect）`。裸 push 禁用（检测不了回卷）。〔K-31=27c；27e A1；corpus #7〕
+- **D-32 Ref 命名与观察分离** `active` — publishing=`refs/coop/<seat>`（权威）；tracking=`refs/hctl/remotes/<remote>/coop/<seat>`（本地观察，仅 fetch 更新、不带 force——远端回卷=响亮 non-ff；deletion 由 ls-remote 集合比较发现）；publishing≠tracking ⇒ 有未决发布，其他本地 writer 只许恢复不许 append。〔27e C2；codex ①〕
+- **D-33 Obligation identity** `active` — preimage=固定结构（顶层四键）：`assignment{id, blob}`（动态: `assign_event`）/ `kind∈{author,gate,merge}`（P1 闭集）/ `target`（branch slug）/ `aspect`（gate=`{gate_id, gater_seat}` 结构化对象；author/merge=null）。`obligation_id = "sha256:" + hex(sha256("hctl-obligation-v1\0" + JCS(preimage)))` 全长禁截断；事件同存 preimage 与派生 id。**head 永不进 id**。identity token 一律 ASCII 闭集 grammar；唯一管线 parse I-JSON → schema 校验 → JCS → 重算比对；dup key/lone surrogate/非 I-JSON ⇒ 拒（CORRUPT_CHAIN）；JCS 不做 Unicode normalization（RFC 8785 §3.1），非 ASCII 靠 grammar 拒于 identity 之外。静态 assignment 在 wire 保留 `source={commit,path,blob}`（审计反查，不进 hash）；loader 拒项目内重复 logical id。assignment 死后（CANCEL/supersede）旧 id 的写动作级②拒绝；assignment 无语义变更=合法 re-gate 风暴，status 亮 `assignment_revision moved`。〔27e B1；27g F1/F5；27h F5′〕
+- **D-34 CLAIM 状态机** `active` — 两阶段 CAS：本地 `update-ref` CAS（同机多 tab）+ 远端 lease push（跨机）；**远端成功才算 acquired**。publishing ref 兼任 durable pending journal；push 结果未知 ⇒ `merge-base --is-ancestor <pending> <remote-tip>` 判 delivered（ancestry 非 tip 等值；blob OID 只作 payload 审计不作 event identity）。gate/merge 类 CLAIM 记 `revision_at_claim={base,head}`（任一前进 ⇒ stale 回池=显式 re-claim eligibility）；author 类记 `tip_at_claim`（可 null），跟 assignment+slug 生命周期。**永不自动 re-claim**；re-claim 必须 `reclaim_of=当前 active claim OID`。阻尼确定函数：escalated ⇒ frozen（仅三径解冻：用户 CANCEL(claim)/CANCEL(obligation)/新 assignment revision；进度不清红）；否则相邻 accepted re-claim 分类——forward（OID 变且 ancestry 证明；author null→非 null 视同）⇒ streak 清；base-only（head 同 base 变）⇒ **environment reset**、streak 清（裁定理由：严格 base 下合规 re-claim 不计 dithering）；same/non-forward（含改写/回卷/摆动）⇒ streak+1 并另报 rewrite 观测位。streak==1 黄、≥2 红+escalated；窗口=（assignment revision, obligation）自上次 completion/CANCEL 起、只计远端 accepted CLAIM。derive 先跑 ref integrity 再进分类。settled 后同语义重发由 state-aware command 返回现状。〔27e C1/C9；27g F4；27h F3′/F4′；codex ⑪〕
+- **D-35 Fencing = claim-OID 律** `active` — claim event OID 即 fencing token；完成/转移类事件（VERDICT/HANDOFF/merge receipt）必须引用 active claim OID；derive 拒 stale-claim 产物；不设 epoch 计数器（「第几代」从链数）。〔27e B5〕
+- **D-36 转手** `active`（跨席部分 `deferred(P2)`）— 同席换化身：**零协议事件**（claim 是席级资产；人读交接可落 NOTE）。跨席：P1 走用户 CANCEL + 新 static assignment revision（人裁径零竞态）；HANDOFF 事件 **DEFERRED**——打开条件=单 CAS 仲裁域（accept-vs-timeout 在同一域串行）+ corpus；在此之前不宣称无双空/双赢窗口。〔27e §2.4；27g F2；codex-27c ①反例〕
+- **D-37 Merge 裁定** `active` — 串行化=**唯一 `merge_coordinator` 席 + repo 级 `merge_capacity=1`**（全部 merge claim 落同一席链=单 CAS 域=capacity 谓词可判；merge obligations 只可派给 coordinator，loader 拒他派）。claim(kind=merge) 前置：required quorum green（exact `{base,head}`）且无 active merge claim（级②拒抢跑）。流程：claim → fetch 全事实 re-check → `gh pr merge --squash --match-head-commit <head> --body-file <receipt>` → fetch main → 验 squash 单 parent==`Hctl-Base` → 验 receipt → 关 claim。receipt 封闭字段：`Hctl-Version/-Assignment/-Obligation/-PR/-Base/-Head/-Merge-Claim/-Method/-Fact-Tip*`（Fact-Tip 可重复，钉 quorum 读到的各席链 prefix）。config cutover 两时点：claim/pre-merge 按 current main 校验 `coordinator_config={commit,path,blob}`（固定单文件）+ actor=该 revision 命名的 coordinator；**receipt 按 `Hctl-Base` 所见 config 校验**（消自失效）；merge 后新 claim 按新 revision。派生态 `merged_pending_receipt`：merge 已证发生 ⇒ 旧 claim 不占新 slot，仅 receipt 清审计债。rebind 经旧 coordinator slot 落地=结构互斥；coordinator 失能走人裁 CANCEL 径（P2/adopters 一句）。严格 base 松弛：P3 语料前禁旋钮，放松必须 schema_version+supersede。非 squash ⇒ `UNJUDGEABLE_MERGE` fail-closed；绕过 hctl 的 merge ⇒ `UNRECORDED_MERGE` 审计债（补记 forward-only、operator 给全 exact 五元组前红灯、禁 NOTE 偷渡；`hctl repair merge-receipt` 入闭集与否 P2 裁）。self-merge 澄清：merge 是 quorum green 后的机械动作。橡皮图章=级③审计黄灯。〔27e B2/C7；27g F3；27h F3′；codex-27c ③〕
+- **D-38 授权面** `active` — 两条不变量分级：「ASSIGN/CANCEL 确由人发起」=**级④信任前提**（`authority:{kind:"user"}` 是声明不是证明；多真人/对抗 profile 才需签名，bootstrap 不造）；「begin/verdict/merge 必须回溯冻结 assignment」=**级②机器拒绝**。escalate 是席位唯一自主出口、永不隐式创建 ASSIGN。`.hctl/**` 变更须 required gate ≥1 非 author 席、禁 silent self-merge；**activation 边界=可重放事实**：seats 配置 `enforcement` 字段由 gated PR 置 `active`（P1 交付即其 gate），writer/loader 读 main 现值分级执行，doctor 硬检；activation 前明标级④ bootstrap trust（自开自合例外随之终止）。CANCEL 精确引用 {assignment revision|obligation|claim}；同 logical id 冲突 payload ⇒ `AMBIGUOUS_ASSIGNMENT` fail-closed；同内容 CANCEL 幂等折叠。〔27e B4；27g F3；grok-27c ④〕
+- **D-39 事实完整性三分法** `active` — ①结构损坏（非线性/多 parent/坏 JSON/seat 与 ref 不符）⇒ `CORRUPT_CHAIN`：整链 quarantine、写动作 fail-closed；②结构合法语义不支持（未知 type/major version）⇒ `UNSUPPORTED_FACTS`：保留对象、展示已知 prefix 与未知 OID、写动作 fail-closed、提示升级；③已知非语义事件（NOTE）⇒ 校验后可忽略正文。前向兼容=新 reader 读旧事实，不是旧 writer 假定未来控制事实无效。`INCOMPLETE_FACTS` ≠ 空集：读动作报不可判定、写动作拒绝；coop 回卷 ⇒ 本地 tip 先存 recovery ref 再红灯；备份=消费仓可选第二 remote。链治理：derive 增量读走 tip-keyed 可丢缓存、链校验自上次已验 tip 增量；compaction 无数据不设计。〔27e C5/C7 → codex-27c ② 三分法；27g F6 部分〕
+- **D-40 Verdict 语义** `active` — 内核只读 `decision∈{APPROVE, REQUEST_CHANGES}`；threshold 是 assignment 声明、展示给 gater 的裁量参数；`max_severity` P1 省略（保留则仅展示）。VERDICT 必须引用 active claim OID + exact `revision{base,head}` + `report={commit,path,blob}`（memo 指针，须已可达于声明 base branch——先合 memo 后落 verdict 的机器硬门）。**per (gater, obligation, revision) latest-wins**。〔27e C4；codex ⑥-C；27e §5.3〕
+- **D-41 评审收敛纪律** `active` — 范围单调收缩：首轮 full ⇒ 后续 fix_verification（findings 清单销账）+ delta（blob 两端），由机械规则定义。verdict 必填 `scope`（`full` 或 `composite{parts:[fix_verification{findings,target_blob}, delta{from_blob,to_blob}]}`）与 `completeness∈{COMPLETE, INCOMPLETE}`（INCOMPLETE 必须明示未覆盖面，partial-silent 禁止）。required quorum 只认四条件齐备：exact revision + COMPLETE + APPROVE + scope 覆盖 assignment 要求的评审面（窄 delta 不冒充全量）。晚期发现=逸出：标 late-finding+原因；merge 前=latest-wins verdict（REQUEST_CHANGES 即失绿**阻断**）；merge 后=NOTE+人裁修复 assignment；不重启封口面。收敛表述=「构造性促进收敛并使逸出可审计」（终止保证另由终裁/round budget 提供）。〔27e §5；27g F6；用户中途定案〕
+- **D-42 Schema 约定** `active` — draft 2020-12；`additionalProperties:false`；OID 全长（SHA-1 40 / SHA-256 64）；集合 uniqueItems；不设 `event_id` UUID（幂等见 D-34；外部 RPC caller 的 idempotency key 留未来）；schema 只管单对象形状，跨文件唯一性/无环/pattern 不相交/可达性归 loader/doctor；schema version 与 hctl 版本分离。〔27e C1/C3；codex ⑥〕
+- **D-43 命令面（P1）** `active` — `doctor / status [--json] / claim <obligation> [--reclaim <oid>] / begin <assignment> [--adopt <branch>|--draft-only] / verdict <gate-obligation> / merge <pr> [--check] / wait`；helpers：`scratch / memo / trailer`；`run` 在 adapters。`begin` 默认 formal（先 claim 后建/adopt 分支；claim 成功而分支失败 ⇒ 重跑复用 active claim 不再铸）；`--draft-only`=本地 speculative 零远端权利（help 大字警告）。〔27e C8；codex ⑧〕
+- **D-44 Phase 边界** `active` — **P0**：METHOD/DECISIONS/三 schema/执行等级表/失败行为/corpus fixtures（#1–28）。**P1** 单竖切：static assignment → 同席 CLAIM → VERDICT → quorum → 唯一 coordinator merge slot → squash receipt；事件闭集 CLAIM/VERDICT/CANCEL；未知事实 fail-closed。**P2**：动态 ASSIGN、跨席 HANDOFF（待仲裁域）、NOTE/presence、wait 轮询合并、memo plumbing、scratch、standby、repair、consult kind。**P3**：abacistopia 影子 round、全语料过绿后删旧件；严格 base 松弛再议。明确不做：git notes、webhook/daemon、SQLite、通用表达式语言、author_concurrency>1、chain compaction、server-side enforcement。〔27g §2；codex ⑨〕
+- **D-45 排班** `active` — GLM/Kimi/AGY 于 P2 期入仓（P1 落地语料全绿后）；顺序 GLM/Kimi 先、AGY 最后（需 memo-only 围栏）。〔27d §4〕
+
+---
+
+## 附：来源速查
+
+| 文件 | 内容 |
+|---|---|
+| memory/claude-2026-07-27.md | 立项底稿 K-01..K-24 + 三堂会审设置 |
+| memory/claude-2026-07-27b.md | 补遗 K-25..K-30（加载协定/化身/CLAIM） |
+| memory/claude-2026-07-27c.md | 基质选型 K-31（appraise 通读+实证） |
+| memory/{grok,codex}-2026-07-27.md | 两堂一审 |
+| memory/claude-2026-07-27d.md | 裁决建议案（A/B/C 分档） |
+| memory/{grok,codex}-2026-07-27b.md | 两堂二轮 |
+| memory/claude-2026-07-27e.md | 三轮收束 + 评审收敛纪律 |
+| memory/claude-2026-07-27f.md | 封口核验任务书 |
+| memory/{grok,codex}-2026-07-27c.md | 封口核验 |
+| memory/claude-2026-07-27g.md | 六条销账 |
+| memory/{grok,codex}-2026-07-27d.md | F1–F6 核验 |
+| memory/claude-2026-07-27h.md | F3′/F4′/F5′ 销账 |
+| memory/{grok,codex}-2026-07-27e.md | 终版核验（双 APPROVE+COMPLETE） |
+| tests/corpus/ | 可执行语料（#7 两案已落）与 BACKLOG |
