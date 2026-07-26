@@ -1,0 +1,42 @@
+# P1 assignment: corpus #1–28 可执行化（tests/corpus/BACKLOG.md）。schema v1。
+# 授权：用户 2026-07-27 排班裁决（memory/claude-2026-07-27j.md）。
+# needs=[]：与 p1-kernel 并行起草；调用 hctl 二进制的案子在 kernel 落 main 后接线收口，
+# 本 assignment 的 merge 前置（quorum green）自然发生在可执行且全绿之后。
+
+schema_version = 1
+id = "p1-corpus"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "grok"
+branch_slug = "p1-corpus"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "precision"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "codex"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "spec-conformance"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "claude"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
