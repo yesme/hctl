@@ -1,0 +1,43 @@
+# P1 assignment: hctl 内核单竖切（D-44）。schema/assignment.schema.json v1。
+# 授权：用户 2026-07-27 排班裁决（「按你之前的安排来」，memory/claude-2026-07-27j.md）。
+# bootstrap 期（enforcement=bootstrap）：CLAIM 事件尚无载体，认领=开工即认；
+# gate verdict 以 memo 形式落 memory/（带 D-41 scope+completeness），quorum green 后由
+# merge coordinator（claude，seats.toml）执行 squash merge——D-37 流程人肉版。
+
+schema_version = 1
+id = "p1-kernel"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "codex"
+branch_slug = "p1-kernel"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "adversarial"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "grok"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "spec-conformance"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "claude"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
