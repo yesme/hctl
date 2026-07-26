@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yesme/hctl/main/schema/assignment.schema.json",
+  "title": "hctl assignment (static work item)",
+  "description": "One file under .hctl/assignments/ = one assignment (D-07). Frozen on merge to main: obligations derive from the blob revision; editing the file in place mints a new revision and kills claims on the old one (D-33). Static assignment revision identity = {commit,path,blob} source triple retained on the wire; obligation preimage uses {id, blob} (27g F1). Cross-file duties (unique logical id project-wide, needs existence and acyclicity, seat existence, gater!=author) belong to loader/doctor (D-42). P1 admits kind=change only; merge obligations always belong to the seats-config merge_coordinator (D-37) — assignments do not name a merge holder.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "kind", "needs", "base_ref", "author", "gates", "merge"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": {
+      "$ref": "#/$defs/token",
+      "description": "Project-wide stable logical id; ASCII closed grammar; never contains machine/session"
+    },
+    "kind": { "enum": ["change"] },
+    "needs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/token" },
+      "uniqueItems": true,
+      "description": "Prerequisite assignment ids; loader checks existence and acyclicity"
+    },
+    "base_ref": {
+      "type": "string",
+      "pattern": "^refs/heads/[a-z0-9._/-]+$",
+      "description": "Target integration branch, e.g. refs/heads/main"
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seat", "branch_slug", "claim_timeout_seconds"],
+      "properties": {
+        "seat": { "$ref": "#/$defs/token" },
+        "branch_slug": {
+          "$ref": "#/$defs/token",
+          "description": "Task branch = work/<seat>/<branch_slug>; also the obligation preimage 'target' (D-33); never carries avatar marks (D-29)"
+        },
+        "claim_timeout_seconds": { "$ref": "#/$defs/timeout" }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gate" },
+      "description": "May be empty only for ungated work; required gates fail closed (D-05)"
+    },
+    "merge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": { "const": "squash" }
+      },
+      "description": "Non-squash strategies are UNJUDGEABLE_MERGE, fail closed (D-37)"
+    }
+  },
+  "$defs": {
+    "token": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,31}$",
+      "description": "ASCII closed grammar for identity-bearing tokens (D-33)"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 60,
+      "description": "Seconds; used only to derive overdue/re-claim eligibility (D-06/D-34), never as an automatic trigger"
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "mode", "requirement", "threshold", "on_timeout", "claim_timeout_seconds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/token" },
+        "mode": { "enum": ["required", "advisory", "observe"] },
+        "requirement": {
+          "$ref": "#/$defs/quorum_node",
+          "description": "Structured AST only; no free-text expression language (D-05). Gate obligations derive one per (gate id, leaf seat), aspect={gate_id, gater_seat} (D-33)"
+        },
+        "threshold": {
+          "enum": ["P0", "P1", "all"],
+          "description": "Review parameter displayed to the gater (D-40); the kernel reads only the verdict decision and never overrides it from severity"
+        },
+        "on_timeout": { "$ref": "#/$defs/on_timeout" },
+        "claim_timeout_seconds": { "$ref": "#/$defs/timeout" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "required" } } },
+          "then": {
+            "properties": {
+              "on_timeout": {
+                "properties": { "action": { "enum": ["escalate", "deputy"] } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "on_timeout": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action"],
+          "properties": { "action": { "const": "escalate" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action", "deputy"],
+          "properties": {
+            "action": { "const": "deputy" },
+            "deputy": { "$ref": "#/$defs/token" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action"],
+          "properties": { "action": { "const": "proceed" } },
+          "description": "Legal for advisory/observe gates only; required+proceed is schema-illegal (D-05)"
+        }
+      ]
+    },
+    "quorum_node": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["seat"],
+          "properties": { "seat": { "$ref": "#/$defs/token" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all_of"],
+          "properties": {
+            "all_of": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/quorum_node" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["any_of"],
+          "properties": {
+            "any_of": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/quorum_node" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["at_least"],
+          "properties": {
+            "at_least": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count", "of"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 1 },
+                "of": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/quorum_node" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Loader additionally rejects duplicate leaves, unknown seats, empty effective sets, count>len(of); votes counted per seat (D-26)"
+    }
+  }
+}
