@@ -2,7 +2,7 @@
 
 > 一条裁定一个 D 号；正文是**终态**（含全部修正后的形态），演化史与论证见「源」指向的 memo（考古层）。规范细节见 METHOD.md（规范层）；本文件是结论层（知识金字塔 D-16）。
 > 状态标记：`active` 现行 ／ `amended(D-xx)` 正文已是修改后终态、修改来源注明 ／ `superseded(D-xx)` 整体退场 ／ `deferred(P2)` 裁定通过、实装推迟 ／ `resolved` 研究义务已结清。
-> **终裁记录**：2026-07-27 用户「准」。范围 = 立项底稿（K-01..K-24）+ 补遗（K-25..K-30）+ 主笔系列（27c 基质 / 27d 建议案 / 27e 收束 / 27g 六条销账 / 27h 三条销账）+ 两堂五轮评审（grok/codex 各 a–e，全部 COMPLETE；收敛轨迹 全量→6→3→0）。D-01..D-31 与 memo 中 K-01..K-31 一一对应。
+> **终裁记录**：2026-07-27 用户「准」。范围 = 立项底稿（K-01..K-24）+ 补遗（K-25..K-30）+ 主笔系列（27c 基质 / 27d 建议案 / 27e 收束 / 27g 六条销账 / 27h 三条销账）+ 两席五轮评审（grok/codex 各 a–e，全部 COMPLETE；收敛轨迹 全量→6→3→0）。D-01..D-31 与 memo 中 K-01..K-31 一一对应。
 
 ---
 
@@ -39,9 +39,9 @@
 - **D-29 任务身份 ≠ 执行者身份** `active` — slug 永不带化身标志；椅子（worktree 本地名）可贴名牌、任务不贴；「现在谁在干」问 claim 链。〔K-29〕
 - **D-30 事件模型** `amended` — 信封：`schema_version`(int) / `type` / `actor{seat, machine, session|null}` / `created_at`(RFC3339 UTC)，discriminated union，`additionalProperties:false`，OID 只收全长。**P1 事件闭集 = CLAIM / VERDICT / CANCEL**；ASSIGN / HANDOFF / NOTE 留 P2。双时戳互证（created_at vs commit date）=级③审计位；弃 10 位 epoch 字符串（appraise workaround，27c 采纳清单被 27e C3 supersede）。〔K-30；27e C3〕
 
-## 终裁定案（D-31..D-45，三堂会审产物）
+## 终裁定案（D-31..D-45，三席评审产物）
 
-- **D-31 事件层基质 = per-seat event commit chain** `active` — 每席一条线性 commit 链 `refs/coop/<seat>`，一事件一 commit；tree 含单文件 `event.json`（payload），message 放人读摘要；弃 git notes（union 合并破互斥、内容时钟排序、4/6 事件无锚——三堂同判+语料实证）。写路径：`hash-object → mktree → commit-tree → update-ref CAS（本地）→ push --force-with-lease=<ref>:<expect>（远端；创建=空 expect）`。裸 push 禁用（检测不了回卷）。〔K-31=27c；27e A1；corpus #7〕
+- **D-31 事件层基质 = per-seat event commit chain** `active` — 每席一条线性 commit 链 `refs/coop/<seat>`，一事件一 commit；tree 含单文件 `event.json`（payload），message 放人读摘要；弃 git notes（union 合并破互斥、内容时钟排序、4/6 事件无锚——三席同判+语料实证）。写路径：`hash-object → mktree → commit-tree → update-ref CAS（本地）→ push --force-with-lease=<ref>:<expect>（远端；创建=空 expect）`。裸 push 禁用（检测不了回卷）。〔K-31=27c；27e A1；corpus #7〕
 - **D-32 Ref 命名与观察分离** `active` — publishing=`refs/coop/<seat>`（权威）；tracking=`refs/hctl/remotes/<remote>/coop/<seat>`（本地观察，仅 fetch 更新、不带 force——远端回卷=响亮 non-ff；deletion 由 ls-remote 集合比较发现）；publishing≠tracking ⇒ 有未决发布，其他本地 writer 只许恢复不许 append。〔27e C2；codex ①〕
 - **D-33 Obligation identity** `active` — preimage=固定结构（顶层四键）：`assignment{id, blob}`（动态: `assign_event`）/ `kind∈{author,gate,merge}`（P1 闭集）/ `target`（branch slug）/ `aspect`（gate=`{gate_id, gater_seat}` 结构化对象；author/merge=null）。`obligation_id = "sha256:" + hex(sha256("hctl-obligation-v1\0" + JCS(preimage)))` 全长禁截断；事件同存 preimage 与派生 id。**head 永不进 id**。identity token 一律 ASCII 闭集 grammar；唯一管线 parse I-JSON → schema 校验 → JCS → 重算比对；dup key/lone surrogate/非 I-JSON ⇒ 拒（CORRUPT_CHAIN）；JCS 不做 Unicode normalization（RFC 8785 §3.1），非 ASCII 靠 grammar 拒于 identity 之外。静态 assignment 在 wire 保留 `source={commit,path,blob}`（审计反查，不进 hash）；loader 拒项目内重复 logical id。assignment 死后（CANCEL/supersede）旧 id 的写动作级②拒绝；assignment 无语义变更=合法 re-gate 风暴，status 亮 `assignment_revision moved`。〔27e B1；27g F1/F5；27h F5′〕
 - **D-34 CLAIM 状态机** `active` — 两阶段 CAS：本地 `update-ref` CAS（同机多 tab）+ 远端 lease push（跨机）；**远端成功才算 acquired**。publishing ref 兼任 durable pending journal；push 结果未知 ⇒ `merge-base --is-ancestor <pending> <remote-tip>` 判 delivered（ancestry 非 tip 等值；blob OID 只作 payload 审计不作 event identity）。gate/merge 类 CLAIM 记 `revision_at_claim={base,head}`（任一前进 ⇒ stale 回池=显式 re-claim eligibility）；author 类记 `tip_at_claim`（可 null），跟 assignment+slug 生命周期。**永不自动 re-claim**；re-claim 必须 `reclaim_of=当前 active claim OID`。阻尼确定函数：escalated ⇒ frozen（仅三径解冻：用户 CANCEL(claim)/CANCEL(obligation)/新 assignment revision；进度不清红）；否则相邻 accepted re-claim 分类——forward（OID 变且 ancestry 证明；author null→非 null 视同）⇒ streak 清；base-only（head 同 base 变）⇒ **environment reset**、streak 清（裁定理由：严格 base 下合规 re-claim 不计 dithering）；same/non-forward（含改写/回卷/摆动）⇒ streak+1 并另报 rewrite 观测位。streak==1 黄、≥2 红+escalated；窗口=（assignment revision, obligation）自上次 completion/CANCEL 起、只计远端 accepted CLAIM。derive 先跑 ref integrity 再进分类。settled 后同语义重发由 state-aware command 返回现状。〔27e C1/C9；27g F4；27h F3′/F4′；codex ⑪〕
@@ -63,12 +63,12 @@
 
 | 文件 | 内容 |
 |---|---|
-| memory/claude-2026-07-27.md | 立项底稿 K-01..K-24 + 三堂会审设置 |
+| memory/claude-2026-07-27.md | 立项底稿 K-01..K-24 + 三席评审设置 |
 | memory/claude-2026-07-27b.md | 补遗 K-25..K-30（加载协定/化身/CLAIM） |
 | memory/claude-2026-07-27c.md | 基质选型 K-31（appraise 通读+实证） |
-| memory/{grok,codex}-2026-07-27.md | 两堂一审 |
+| memory/{grok,codex}-2026-07-27.md | 两席一审 |
 | memory/claude-2026-07-27d.md | 裁决建议案（A/B/C 分档） |
-| memory/{grok,codex}-2026-07-27b.md | 两堂二轮 |
+| memory/{grok,codex}-2026-07-27b.md | 两席二轮 |
 | memory/claude-2026-07-27e.md | 三轮收束 + 评审收敛纪律 |
 | memory/claude-2026-07-27f.md | 封口核验任务书 |
 | memory/{grok,codex}-2026-07-27c.md | 封口核验 |
