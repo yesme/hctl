@@ -31,7 +31,7 @@
 - **D-21 git-appraise 处置** `resolved(D-31)` — 研究义务已执行（27c 通读）；先例与 schema 纪律继承、notes 存储不继承。〔K-21〕
 - **D-22 Harness 接入三件套** `active` — 门牌一行指针 → 共享 AGENTS.md（seat-agnostic）→ 个席补充（特例才建）；hctl help 是 canonical 文档；SKILL 薄壳可选；最好的 skill 是自描述输出。〔K-22/K-25〕
 - **D-23 归因三通道** `active` — 命名空间单写者（机器判身份）+ 证据化 trailer（模型+effort 取会话实况）+ 人读自报；GitHub actor 永不作身份判据。〔K-23〕
-- **D-24 实现形态** `active` — Python 3 stdlib 单包零 pip；配置 TOML、事件 JSON；shell 仅薄壳；batch plumbing 禁 per-object exec。〔K-24；27c〕
+- **D-24 实现形态** `amended` — **Go 单 module**（版本 pin go.mod + doctor 检；本改判 supersede 原 Python stdlib 案）。分发=源码入仓、每机 `go build` 一次（clone+build+PATH）；不入仓二进制、不走 Releases。依赖最少、vendored+go.sum 锁定（TOML 库；JCS 手写对 corpus #28 锁）。**stale-binary 自检**：buildinfo `vcs.revision` 对 seats.toml kernel pin，不符即拒（级②）。原案动因全继承：拒 shell 字符串病、语料可回归、batch plumbing 禁 per-object exec；配置 TOML、事件 JSON 不变；shell 仅薄壳；gate.py/coauthor.py 收编时以 Go 重写；git-appraise Go 源作实现参考。改判动因：用户裁二进制分发 + Python 依赖/解释器漂移（tomllib 实证）；效率论经实测排除（非动因）。〔K-24；27c；**27i 语言改判**〕
 - **D-25 启动文件加载协定** `active` — 门牌/共享正文/个席补充三层（详 D-22）。〔K-25〕
 - **D-26 Seat 与化身** `active` — 席位=脑子（harness×model），机器=椅子；同席多化身是一个席位；quorum 按席计票；machine/session 只作溯源（machine=hctl 安装 UUID 或别名；session 可 null），永不进 quorum/ownership/freshness/命名空间。〔K-26；codex ⑫〕
 - **D-27 双机物理模型** `active` — 两 clone 两 `.git` 零文件系统交集，交点只有 origin；同机多 tab 共享 `.git` 靠本地 CAS。〔K-27〕
