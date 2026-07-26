@@ -1,0 +1,36 @@
+# hctl 席位声明 — 首个实例（bootstrap 版）
+# schema/seats.schema.json 定稿后按 schema 校验；字段名以最终 schema 为准（向业界字段名对齐）。
+# 其余席位（glm / kimi / agy）待用户排班后加入。
+
+version = 0
+kernel = "hctl@bootstrap"   # 版本 pin 形态待定（memory/claude-2026-07-27.md §6.5）
+
+[seats.claude]
+harness         = "claude-code"
+model           = "fable-5"
+capabilities    = ["vision", "architecture", "planning", "narrative"]
+write           = "canonical"    # canonical | memo-only
+token_class     = "full"         # full | limited
+branch_patterns = ["work/claude/*", "claude/*"]   # 后者容纳 provider-hosted 自动命名分支
+memo_prefix     = "claude-"
+# 实测注记（待逐家验证）：session-resume=?  parallel-session=?  subagent=yes  skill=native
+
+[seats.codex]
+harness         = "openai-codex"
+model           = "gpt-5.6"
+capabilities    = ["logic", "spec-precision", "implementation", "verification"]
+write           = "canonical"
+token_class     = "full"
+branch_patterns = ["work/codex/*", "codex/*"]
+memo_prefix     = "codex-"
+# 实测注记：session-resume=?  parallel-session=?  subagent=?  skill=probable
+
+[seats.grok]
+harness         = "grok-build"
+model           = "grok-4.5"
+capabilities    = ["adversarial-review", "general-gate", "efficiency"]
+write           = "canonical"
+token_class     = "full"
+branch_patterns = ["work/grok/*", "grok/*"]
+memo_prefix     = "grok-"
+# 实测注记：session-resume=?  parallel-session=?  subagent=?  skill=?
