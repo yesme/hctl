@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yesme/hctl/main/schema/event.schema.json",
+  "title": "hctl event (event.json payload of one event commit)",
+  "description": "One event = one commit on refs/coop/<seat> whose tree holds exactly this file as event.json; commit message is a human summary and carries no semantics (D-31). P1 closed set: CLAIM / VERDICT / CANCEL (D-30). Readers apply the three-way split (D-39): structurally invalid -> CORRUPT_CHAIN quarantine; valid but unknown type/major version -> UNSUPPORTED_FACTS, writes fail closed. Identity pipeline (D-33): parse valid I-JSON -> validate -> RFC 8785 (JCS) bytes of the structured preimage -> sha256 recompute-and-compare; duplicate keys, lone surrogates, non-I-JSON are rejected as structural corruption; readers never require wire-byte equality. actor.seat must equal the chain's seat; actor machine/session are provenance only (D-26). created_at is tool-generated audit data, cross-checked against the commit timestamp (level-3); ordering always comes from chain topology, never from clocks (D-31).",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/claim" },
+    { "$ref": "#/$defs/verdict" },
+    { "$ref": "#/$defs/cancel" }
+  ],
+  "$defs": {
+    "oid": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+      "description": "Full-length object id only; no abbreviations (D-42)"
+    },
+    "token": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,31}$"
+    },
+    "obligation_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "sha256(\"hctl-obligation-v1\\0\" + JCS(preimage)); full length, protocol forbids truncation (D-33)"
+    },
+    "source_triple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "path", "blob"],
+      "properties": {
+        "commit": { "$ref": "#/$defs/oid" },
+        "path": { "type": "string", "minLength": 1 },
+        "blob": { "$ref": "#/$defs/oid" }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "head"],
+      "properties": {
+        "base": { "$ref": "#/$defs/oid" },
+        "head": { "$ref": "#/$defs/oid" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seat", "machine", "session"],
+      "properties": {
+        "seat": { "$ref": "#/$defs/token" },
+        "machine": {
+          "type": "string",
+          "minLength": 1,
+          "description": "hctl installation UUID or human-readable alias; provenance only"
+        },
+        "session": {
+          "type": ["string", "null"],
+          "description": "adapter-provided run id; null when unavailable; never used for correctness (D-26)"
+        }
+      }
+    },
+    "obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preimage", "id"],
+      "properties": {
+        "preimage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assignment", "kind", "target", "aspect"],
+          "properties": {
+            "assignment": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "blob"],
+                  "properties": {
+                    "id": { "$ref": "#/$defs/token" },
+                    "blob": { "$ref": "#/$defs/oid" }
+                  },
+                  "description": "Static assignment (P1)"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["assign_event"],
+                  "properties": { "assign_event": { "$ref": "#/$defs/oid" } },
+                  "description": "Dynamic assignment (P2, reserved)"
+                }
+              ]
+            },
+            "kind": { "enum": ["author", "gate", "merge"] },
+            "target": { "$ref": "#/$defs/token" },
+            "aspect": {
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["gate_id", "gater_seat"],
+                  "properties": {
+                    "gate_id": { "$ref": "#/$defs/token" },
+                    "gater_seat": { "$ref": "#/$defs/token" }
+                  }
+                }
+              ],
+              "description": "Structured object for gate; null for author/merge (27h F5')"
+            }
+          }
+        },
+        "id": { "$ref": "#/$defs/obligation_hash" },
+        "source": {
+          "$ref": "#/$defs/source_triple",
+          "description": "Static assignments only: wire provenance for audit reverse-lookup; not part of the hash (27g F1)"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "preimage": { "properties": { "kind": { "const": "gate" } } } } },
+          "then": { "properties": { "preimage": { "properties": { "aspect": { "type": "object" } } } } },
+          "else": { "properties": { "preimage": { "properties": { "aspect": { "type": "null" } } } } }
+        }
+      ]
+    },
+    "envelope": {
+      "type": "object",
+      "required": ["schema_version", "type", "actor", "created_at"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "actor": { "$ref": "#/$defs/actor" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "claim": {
+      "allOf": [{ "$ref": "#/$defs/envelope" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "type", "actor", "created_at", "obligation", "reclaim_of", "reclaim_reason"],
+      "properties": {
+        "schema_version": true,
+        "type": { "const": "CLAIM" },
+        "actor": true,
+        "created_at": true,
+        "obligation": { "$ref": "#/$defs/obligation" },
+        "revision_at_claim": {
+          "$ref": "#/$defs/revision",
+          "description": "gate/merge kinds: exact revision observed at claim; either component moving stales the claim (D-34). Also the causal progress anchor for streak classification (27h F4')"
+        },
+        "tip_at_claim": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/oid" }],
+          "description": "author kind: branch tip observed at claim; null before the branch exists"
+        },
+        "coordinator_config": {
+          "$ref": "#/$defs/source_triple",
+          "description": "merge kind only: the seats-config source this claim was made under; pre-merge validated against current main, receipt validated against Hctl-Base (D-37)"
+        },
+        "reclaim_of": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/oid" }],
+          "description": "null on first claim; otherwise MUST equal the current active claim event OID (D-34/D-35)"
+        },
+        "reclaim_reason": {
+          "oneOf": [{ "type": "null" }, { "enum": ["overdue", "operator"] }],
+          "description": "null on first claim; no automatic re-claim exists, so every reason names an explicit path"
+        }
+      }
+    },
+    "verdict": {
+      "allOf": [{ "$ref": "#/$defs/envelope" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "type", "actor", "created_at", "obligation", "claim", "pr", "revision", "decision", "report", "scope", "completeness"],
+      "properties": {
+        "schema_version": true,
+        "type": { "const": "VERDICT" },
+        "actor": true,
+        "created_at": true,
+        "obligation": { "$ref": "#/$defs/obligation" },
+        "claim": {
+          "$ref": "#/$defs/oid",
+          "description": "Active CLAIM event OID — the fencing token (D-35); derive rejects verdicts from stale claims"
+        },
+        "pr": { "type": "integer", "minimum": 1 },
+        "revision": { "$ref": "#/$defs/revision" },
+        "decision": { "enum": ["APPROVE", "REQUEST_CHANGES"] },
+        "report": {
+          "$ref": "#/$defs/source_triple",
+          "description": "Memo pointer; commit must already be reachable from the declared base branch — the merge-memo-first hard gate (D-40)"
+        },
+        "scope": { "$ref": "#/$defs/review_scope" },
+        "completeness": {
+          "enum": ["COMPLETE", "INCOMPLETE"],
+          "description": "Required quorum counts only exact-revision + COMPLETE + APPROVE + covering scope (D-41)"
+        },
+        "incomplete_reason": {
+          "type": "string",
+          "description": "Required in prose when completeness=INCOMPLETE: what was not covered"
+        }
+      }
+    },
+    "review_scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "full" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "parts"],
+          "properties": {
+            "kind": { "const": "composite" },
+            "parts": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "findings", "target_blob"],
+                    "properties": {
+                      "kind": { "const": "fix_verification" },
+                      "findings": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": { "type": "string" },
+                        "uniqueItems": true
+                      },
+                      "target_blob": { "$ref": "#/$defs/oid" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "from_blob", "to_blob"],
+                    "properties": {
+                      "kind": { "const": "delta" },
+                      "from_blob": { "$ref": "#/$defs/oid" },
+                      "to_blob": { "$ref": "#/$defs/oid" }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "cancel": {
+      "allOf": [{ "$ref": "#/$defs/envelope" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "type", "actor", "created_at", "target", "reason", "authority"],
+      "properties": {
+        "schema_version": true,
+        "type": { "const": "CANCEL" },
+        "actor": true,
+        "created_at": true,
+        "target": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "assignment"],
+              "properties": {
+                "kind": { "const": "assignment" },
+                "assignment": { "$ref": "#/$defs/source_triple" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "obligation"],
+              "properties": {
+                "kind": { "const": "obligation" },
+                "obligation": { "$ref": "#/$defs/obligation_hash" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "claim"],
+              "properties": {
+                "kind": { "const": "claim" },
+                "claim": { "$ref": "#/$defs/oid" }
+              },
+              "description": "Frees the obligation back to the pool and resets the re-claim streak (D-34)"
+            }
+          ]
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "user" } },
+          "description": "A declaration, not a proof — level-4 trust premise (D-38); identical-content CANCELs fold idempotently"
+        }
+      }
+    }
+  }
+}

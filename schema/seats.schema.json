@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yesme/hctl/main/schema/seats.schema.json",
+  "title": "hctl seats configuration",
+  "description": "Shape of the parsed .hctl/seats.toml. Schema validates single-object shape only (D-42); cross-field duties — pattern disjointness across seats/lanes, merge_coordinator existence and write_scope=canonical, branch owner uniqueness — belong to loader/doctor. This file is the single coordinator_config source (D-37): merge claims pin its {commit,path,blob}.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kernel", "merge_coordinator", "enforcement", "seats"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kernel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "hctl version pin: exact semver or git OID; 'hctl@bootstrap' allowed pre-P1"
+    },
+    "merge_coordinator": {
+      "$ref": "#/$defs/seat_id",
+      "description": "The unique seat allowed to hold merge obligations (D-37); repo-wide merge_capacity is fixed at 1"
+    },
+    "enforcement": {
+      "enum": ["bootstrap", "active"],
+      "description": "Replayable activation boundary (D-38): 'bootstrap' = level-4 trust, self-merge exception in force; 'active' = level-2 enforcement of gated .hctl/** changes; flipped only by a gated PR; doctor hard-checks"
+    },
+    "seats": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+      "additionalProperties": { "$ref": "#/$defs/seat" }
+    }
+  },
+  "$defs": {
+    "seat_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,31}$",
+      "description": "ASCII closed grammar (D-33): identity-bearing token"
+    },
+    "branch_pattern": {
+      "type": "string",
+      "pattern": "^refs/heads/[a-z0-9._/-]*(\\*)?[a-z0-9._/-]*$",
+      "description": "Full refname pattern, git-refspec style, at most one '*'; no regex, no glob extensions"
+    },
+    "feature_flag": { "enum": ["yes", "no", "limited", "unknown"] },
+    "seat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["harness", "model", "capabilities", "write_scope", "author_concurrency", "memo_branch_patterns", "features"],
+      "properties": {
+        "harness": { "type": "string", "minLength": 1 },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Attribution metadata only; never a routing key"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Planner hints; kernel only checks referential existence"
+        },
+        "write_scope": { "enum": ["canonical", "memo-only"] },
+        "author_concurrency": {
+          "enum": [0, 1],
+          "description": "P1 admits only 0 (memo-only) or 1 (canonical); >1 requires a schema_version bump (D-44)"
+        },
+        "author_branch_patterns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/branch_pattern" },
+          "uniqueItems": true,
+          "minItems": 1,
+          "description": "author-class lane, canonical form refs/heads/work/<seat>/* (D-08)"
+        },
+        "memo_branch_patterns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/branch_pattern" },
+          "uniqueItems": true,
+          "minItems": 1,
+          "description": "memo lane, canonical form refs/heads/memo/<seat>/* (D-08); must be disjoint from every author pattern (doctor)"
+        },
+        "token_class": { "enum": ["full", "limited"] },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["session_resume", "parallel_sessions", "subagents", "skill", "door_file"],
+          "properties": {
+            "session_resume": { "$ref": "#/$defs/feature_flag" },
+            "parallel_sessions": { "$ref": "#/$defs/feature_flag" },
+            "subagents": { "$ref": "#/$defs/feature_flag" },
+            "skill": { "enum": ["native", "adapter", "unsupported", "unknown"] },
+            "door_file": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The file this harness auto-loads (D-25); one-line pointer to AGENTS.md"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "write_scope": { "const": "canonical" } } },
+          "then": {
+            "required": ["author_branch_patterns"],
+            "properties": { "author_concurrency": { "const": 1 } }
+          }
+        },
+        {
+          "if": { "properties": { "write_scope": { "const": "memo-only" } } },
+          "then": {
+            "properties": { "author_concurrency": { "const": 0 } },
+            "not": { "required": ["author_branch_patterns"] }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,36 +1,60 @@
-# hctl 席位声明 — 首个实例（bootstrap 版）
-# schema/seats.schema.json 定稿后按 schema 校验；字段名以最终 schema 为准（向业界字段名对齐）。
-# 其余席位（glm / kimi / agy）待用户排班后加入。
+# hctl 席位声明 — 零号采用者（schema/seats.schema.json v1）
+# 本文件是 D-37 的 coordinator_config 单文件源：merge claim 钉其 {commit,path,blob}。
+# 跨字段规则（pattern 两两不相交、coordinator 存在且 canonical 等）由 loader/doctor 校验。
+# enforcement=bootstrap：级④信任期，自开自合例外生效；P1 交付时经 gated PR 置 active（D-38）。
 
-version = 0
-kernel = "hctl@bootstrap"   # 版本 pin 形态待定（memory/claude-2026-07-27.md §6.5）
+schema_version    = 1
+kernel            = "hctl@bootstrap"
+merge_coordinator = "claude"
+enforcement       = "bootstrap"
 
 [seats.claude]
-harness         = "claude-code"
-model           = "fable-5"
-capabilities    = ["vision", "architecture", "planning", "narrative"]
-write           = "canonical"    # canonical | memo-only
-token_class     = "full"         # full | limited
-branch_patterns = ["work/claude/*", "claude/*"]   # 后者容纳 provider-hosted 自动命名分支
-memo_prefix     = "claude-"
-# 实测注记（待逐家验证）：session-resume=?  parallel-session=?  subagent=yes  skill=native
+harness               = "claude-code"
+model                 = "fable-5"
+capabilities          = ["vision", "architecture", "planning", "narrative"]
+write_scope           = "canonical"
+author_concurrency    = 1
+author_branch_patterns = ["refs/heads/work/claude/*", "refs/heads/claude/*"]
+memo_branch_patterns   = ["refs/heads/memo/claude/*"]
+token_class           = "full"
+
+[seats.claude.features]
+session_resume    = "yes"
+parallel_sessions = "yes"
+subagents         = "yes"
+skill             = "native"
+door_file         = "CLAUDE.md"
 
 [seats.codex]
-harness         = "openai-codex"
-model           = "gpt-5.6"
-capabilities    = ["logic", "spec-precision", "implementation", "verification"]
-write           = "canonical"
-token_class     = "full"
-branch_patterns = ["work/codex/*", "codex/*"]
-memo_prefix     = "codex-"
-# 实测注记：session-resume=?  parallel-session=?  subagent=?  skill=probable
+harness               = "openai-codex"
+model                 = "gpt-5.6"
+capabilities          = ["logic", "spec-precision", "implementation", "verification"]
+write_scope           = "canonical"
+author_concurrency    = 1
+author_branch_patterns = ["refs/heads/work/codex/*", "refs/heads/codex/*"]
+memo_branch_patterns   = ["refs/heads/memo/codex/*"]
+token_class           = "full"
+
+[seats.codex.features]
+session_resume    = "unknown"
+parallel_sessions = "unknown"
+subagents         = "unknown"
+skill             = "unknown"
+door_file         = "AGENTS.md"      # 实测：直读共享正文（codex-2026-07-27.md ⑬）
 
 [seats.grok]
-harness         = "grok-build"
-model           = "grok-4.5"
-capabilities    = ["adversarial-review", "general-gate", "efficiency"]
-write           = "canonical"
-token_class     = "full"
-branch_patterns = ["work/grok/*", "grok/*"]
-memo_prefix     = "grok-"
-# 实测注记：session-resume=?  parallel-session=?  subagent=?  skill=?
+harness               = "grok-build"
+model                 = "grok-4.5"
+capabilities          = ["adversarial-review", "general-gate", "efficiency"]
+write_scope           = "canonical"
+author_concurrency    = 1
+author_branch_patterns = ["refs/heads/work/grok/*", "refs/heads/grok/*"]
+memo_branch_patterns   = ["refs/heads/memo/grok/*"]
+token_class           = "full"
+
+[seats.grok.features]
+session_resume    = "unknown"
+parallel_sessions = "unknown"
+subagents         = "unknown"
+skill             = "unknown"        # 有 bundled skills 体系，hctl 薄壳挂载待实测（grok-2026-07-27.md ⑬）
+door_file         = "AGENTS.md"      # 实测：工作区 pointer 生效
