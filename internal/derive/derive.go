@@ -31,12 +31,14 @@ type ClaimState struct {
 
 type VerdictState struct {
 	OID              string               `json:"oid"`
+	Claim            string               `json:"claim"`
 	Decision         string               `json:"decision"`
 	Completeness     string               `json:"completeness"`
 	IncompleteReason string               `json:"incomplete_reason,omitempty"`
 	Scope            protocol.ReviewScope `json:"scope"`
 	Report           protocol.Source      `json:"report"`
 	PR               int                  `json:"pr"`
+	Revision         protocol.Revision    `json:"revision"`
 	Covers           bool                 `json:"covers"`
 	Valid            bool                 `json:"valid"`
 	Reason           string               `json:"reason,omitempty"`
@@ -57,6 +59,7 @@ type ObligationState struct {
 	TimeoutSeconds   int64                   `json:"timeout_seconds"`
 	Claim            *ClaimState             `json:"claim,omitempty"`
 	Verdict          *VerdictState           `json:"verdict,omitempty"`
+	Carried          *CarriedVerdict         `json:"carried,omitempty"`
 	State            string                  `json:"state"`
 	NextAction       string                  `json:"next_action"`
 	Canceled         bool                    `json:"canceled"`
@@ -216,6 +219,7 @@ func (e Engine) Derive(ctx context.Context, snapshot *facts.Snapshot, currentSea
 		}
 	}
 
+	carry := newCarryEvaluator(ctx, e.Repo, snapshot)
 	for _, state := range result.Obligations {
 		if canceledObligations[state.Obligation.ID] ||
 			e.assignmentCanceled(snapshot, state.AssignmentRecord, canceledAssignments) {
@@ -223,7 +227,7 @@ func (e Engine) Derive(ctx context.Context, snapshot *facts.Snapshot, currentSea
 		}
 		acceptedVerdicts := map[string]bool{}
 		e.replayClaims(snapshot, result, state, canceledClaims, acceptedVerdicts)
-		e.selectVerdict(snapshot, state, acceptedVerdicts)
+		e.selectVerdict(snapshot, state, acceptedVerdicts, carry)
 	}
 	e.markMovedAssignments(snapshot, result)
 	if !e.SkipMergeAudit && snapshot.MainCommit != "" {
@@ -329,7 +333,7 @@ func (e Engine) replayClaims(
 				reason = "claim is escalated and frozen"
 			case active.Revision == nil || v.Revision != *active.Revision:
 				reason = "revision does not match the active claim"
-			case snapshot.PullTips[v.PR] != v.Revision.Head:
+			case !verdictPRMatchesObservedRevision(snapshot, state, v):
 				reason = "PR does not identify the exact verdict head"
 			case !e.reportReachableAt(snapshot, v.Report, v.Revision.Base):
 				reason = "report source is not reachable from revision base or blob does not match"
@@ -518,6 +522,7 @@ func (e Engine) selectVerdict(
 	snapshot *facts.Snapshot,
 	state *ObligationState,
 	acceptedVerdicts map[string]bool,
+	carry *carryEvaluator,
 ) {
 	if state.Kind != "gate" || state.Revision == nil {
 		return
@@ -526,25 +531,53 @@ func (e Engine) selectVerdict(
 	if chain == nil {
 		return
 	}
-	var latest *protocol.Event
+	var latestExact *protocol.Event
+	var latestOverall *protocol.Event
 	for _, event := range chain.Events {
 		if event.Verdict == nil || event.Verdict.Obligation.ID != state.Obligation.ID {
 			continue
 		}
-		if event.Verdict.Revision != *state.Revision {
-			continue
+		latestOverall = event
+		if event.Verdict.Revision == *state.Revision {
+			latestExact = event
 		}
-		latest = event
 	}
-	if latest == nil {
+	if latestExact != nil {
+		e.selectExactVerdict(state, latestExact, acceptedVerdicts)
 		return
 	}
-	v := latest.Verdict
-	verdict := &VerdictState{
-		OID: latest.OID, Decision: v.Decision, Completeness: v.Completeness,
-		IncompleteReason: v.IncompleteReason,
-		Scope:            v.Scope, Report: v.Report, PR: v.PR,
+	if latestOverall == nil {
+		return
 	}
+	v := latestOverall.Verdict
+	if !acceptedVerdicts[latestOverall.OID] ||
+		v.Decision != "APPROVE" ||
+		v.Completeness != "COMPLETE" ||
+		!scopeCovers(v.Scope) ||
+		state.PR == 0 ||
+		v.PR != state.PR ||
+		state.Claim == nil ||
+		state.Claim.OID != v.Claim ||
+		state.Claim.Escalated ||
+		!carry.memoBaseEquivalent(v.Revision, *state.Revision) {
+		return
+	}
+	state.Verdict = verdictState(latestOverall)
+	state.Verdict.Valid = true
+	state.Verdict.Covers = true
+	state.Carried = &CarriedVerdict{
+		Kind: memoBaseCarryKind, Verdict: latestOverall.OID, Claim: v.Claim,
+		Report: v.Report, Revision: v.Revision,
+	}
+}
+
+func (e Engine) selectExactVerdict(
+	state *ObligationState,
+	latest *protocol.Event,
+	acceptedVerdicts map[string]bool,
+) {
+	v := latest.Verdict
+	verdict := verdictState(latest)
 	state.Verdict = verdict
 	switch {
 	case !acceptedVerdicts[latest.OID]:
@@ -563,6 +596,33 @@ func (e Engine) selectVerdict(
 		verdict.Valid = true
 		verdict.Covers = scopeCovers(v.Scope)
 	}
+}
+
+func verdictState(event *protocol.Event) *VerdictState {
+	v := event.Verdict
+	verdict := &VerdictState{
+		OID: event.OID, Claim: v.Claim, Decision: v.Decision, Completeness: v.Completeness,
+		IncompleteReason: v.IncompleteReason,
+		Scope:            v.Scope, Report: v.Report, PR: v.PR, Revision: v.Revision,
+	}
+	return verdict
+}
+
+func verdictPRMatchesObservedRevision(
+	snapshot *facts.Snapshot,
+	state *ObligationState,
+	verdict *protocol.Verdict,
+) bool {
+	if snapshot.PullTips[verdict.PR] == verdict.Revision.Head {
+		return true
+	}
+	// Pull refs expose only the current head. A historical verdict on the same
+	// PR remains eligible for the carry proof; exact candidate equivalence is
+	// checked later before it can contribute a vote.
+	return state.Revision != nil &&
+		verdict.Revision != *state.Revision &&
+		state.PR != 0 &&
+		verdict.PR == state.PR
 }
 
 func (e Engine) reportReachableAt(snapshot *facts.Snapshot, report protocol.Source, base string) bool {

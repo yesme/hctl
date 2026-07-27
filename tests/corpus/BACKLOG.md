@@ -1,9 +1,9 @@
-# Corpus BACKLOG — 语料清单 #1–#28（P0 fixtures 规格）
+# Corpus BACKLOG — 语料清单 #1–#29（P0 fixtures + P1 carry）
 
 > 语料原则（D-17）：断言护栏与 git 物理，不断言 LLM 行为；每案自带沙盘、零网络、退出码判定。
-> 已可执行：concurrency 两案 + `cases/01`–`28`（`bash tests/corpus/run.sh`；门禁用 `HCTL=… CORPUS_REQUIRE_HCTL=1`）。
+> 已可执行：concurrency 两案 + `cases/01`–`29`（`bash tests/corpus/run.sh`；门禁用 `HCTL=… CORPUS_REQUIRE_HCTL=1`）。
 > 执行注记（codex-27e，非新条件）：#23–26 receipt/完整性校验失败先红灯再谈 slot（C7 优先级）；#27 derive 先跑 ref integrity 再进 progress 分类（回卷≠environment reset）；#28 parser 须保留 duplicate-key / lone-surrogate 检测（禁静默 last-wins map parser）。
-> **接线（fix-forward / p1-corpus-terminal）**：`run.sh` 冻结 manifest；wire 案真实调用 `hctl`（#3/#6–#9/#11–#12/#28）。known-event 结构以 Go 为唯一执行者；#6 table 每行使用独立 fixture，并按 event OID/seat/code/reason 精确归因，禁止跨席残留红态代打。pure helper 仅 envelope/unknown-type（KNOWN_TYPE_DEFER）。#7 receipt 负例须命中声明 guard 子串（codex-27k §2.2）。
+> **接线（fix-forward / p1-corpus-terminal + p1-regate-carry）**：`run.sh` 冻结 manifest；wire 案真实调用 `hctl`（#3/#6–#9/#11–#12/#28–#29）。known-event 结构以 Go 为唯一执行者；#6 table 每行使用独立 fixture，并按 event OID/seat/code/reason 精确归因，禁止跨席残留红态代打。pure helper 仅 envelope/unknown-type（KNOWN_TYPE_DEFER）。#7 receipt 负例须命中声明 guard 子串（codex-27k §2.2）；#29 以真实 CLAIM/VERDICT/branch/PR refs 固定 carry 正反面。
 
 | # | 案 | 机械层 | 源 | 脚本 |
 |---|---|---|---|---|
@@ -37,3 +37,4 @@
 | 26 | receipt 声称 config ≠ `Hctl-Base` 所见 blob ⇒ 拒 | D-37 | codex-27d | `cases/26-receipt-config-mismatch-reject.sh` |
 | 27 | H1→H2→H1 摆动不清 streak；base-only 标 env-reset 且清；ancestry 前进清 | D-34 | codex-27d | `cases/27-streak-forward-env-reset.sh` |
 | 28 | JCS 向量：key 序/escape 同 id；非 ASCII grammar 拒；dup key / lone surrogate 拒 | D-33 | codex-27d | `cases/28-jcs-vectors.sh` |
+| 29 | memo-only base + exact candidate 可 carry；whitespace/message/non-memo base 均拒 | D-04/D-40/D-41 | codex-27k | `cases/29-regate-carry.sh` |

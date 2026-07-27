@@ -394,6 +394,7 @@ func (b *Batch) Close() error {
 type Commit struct {
 	Tree          string
 	Parents       []string
+	Author        string
 	CommitterUnix int64
 	Message       string
 }
@@ -423,6 +424,8 @@ func ParseCommit(raw []byte) (Commit, error) {
 			c.Tree = string(value)
 		case "parent":
 			c.Parents = append(c.Parents, string(value))
+		case "author":
+			c.Author = string(value)
 		case "committer":
 			parts := bytes.Fields(value)
 			if len(parts) >= 2 {

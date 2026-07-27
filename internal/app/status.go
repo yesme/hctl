@@ -76,6 +76,14 @@ func (a *App) printStatus(load *loaded) {
 			state.Obligation.ID, state.Assignment, state.Kind, state.Holder, gate, state.State, claim,
 			strings.TrimSpace(state.NextAction),
 		)
+		if state.Carried != nil {
+			fmt.Fprintf(a.Stdout,
+				"  carried: %s\n  original verdict=%s revision={base:%s,head:%s} report={commit:%s,path:%s,blob:%s}\n",
+				state.Carried.Kind, state.Carried.Verdict,
+				state.Carried.Revision.Base, state.Carried.Revision.Head,
+				state.Carried.Report.Commit, state.Carried.Report.Path, state.Carried.Report.Blob,
+			)
+		}
 	}
 }
 
