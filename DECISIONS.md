@@ -26,7 +26,7 @@
 - **D-16 Context 经济学** `active` — 知识金字塔（门面→现状→结论→正文→考古）；收口(closeout)为标准节点类型；brief 带指针不带语料；稳定前缀纪律。〔K-16〕
 - **D-17 执行等级第一原则** `amended(D-38/D-41)` — 违规是设计问题；四级阶梯（结构不可能/机器拒绝/机器审计/LLM 自觉）；每条不变量标注执行等级；LLM 只做选择题；最强执行是删规则。诚实降级：hooks=级③；远端 append-only=伪①→级③检测+备份；级④仅存 memo 质量与知识上迁（点名+closeout 兜底）。护栏防失误不防恶意。〔K-17；27e C6〕
 - **D-18 监听面 = ref 平面** `active` — 一条 `ls-remote` 全量覆盖；轮询只存在于 wait 期间；快照缓存可丢；P2 增 clone 级合并轮询（一 clone 一 poll leader、快照共享、退避+jitter）。〔K-18；codex ④〕
-- **D-19 驻留模式** `amended` — 驻班（wait↔work 自循环，授权=assignment，意外一律 escalate）/待命；**班次有界降级为 token 卫生建议**（永续双 fire 对正确性无害）；人的角色=排班、点火、裁决。〔K-19；K-28 修订〕
+- **D-19 驻留模式** `amended` — 驻班（wait↔work 自循环，授权=assignment，意外一律 escalate）/待命；**班次有界降级为 token 卫生建议**（永续双 fire 对正确性无害）；人的角色=排班、开工、裁决。〔K-19；K-28 修订〕
 - **D-20 轮子复用三层** `active` — 直接复用 git/GitHub/既有脚本语义；naming policy 凡有业界词不自造（新增采纳：RFC 8785 JCS、Gerrit NoteDb meta-ref 形态、fencing token、assignment）；自造仅 seat 与 memo lane；抄模型不抄部署。〔K-20〕
 - **D-21 git-appraise 处置** `resolved(D-31)` — 研究义务已执行（27c 通读）；先例与 schema 纪律继承、notes 存储不继承。〔K-21〕
 - **D-22 Harness 接入三件套** `active` — 门牌一行指针 → 共享 AGENTS.md（seat-agnostic）→ 个席补充（特例才建）；hctl help 是 canonical 文档；SKILL 薄壳可选；最好的 skill 是自描述输出。〔K-22/K-25〕

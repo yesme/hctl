@@ -148,7 +148,7 @@ activation 是可重放事实：`enforcement` 字段由 gated PR 置 `active`（
 
 ## 13. 驻留模式（D-19）
 
-驻班（fire 一次进入 wait↔work 自循环，消化 derive 名下义务）/ 待命（需点火）。授权边界：无 assignment 不动作，意外一律 escalate。班次有界 = token 卫生建议非法律；永续双 fire 对正确性无害（level-triggered + CLAIM 互斥 + 幂等恢复）。人的角色终局：**排班、点火、裁决**。
+驻班（fire 一次进入 wait↔work 自循环，消化 derive 名下义务）/ 待命（需开工）。授权边界：无 assignment 不动作，意外一律 escalate。班次有界 = token 卫生建议非法律；永续双 fire 对正确性无害（level-triggered + CLAIM 互斥 + 幂等恢复）。人的角色终局：**排班、开工、裁决**。
 
 ## 14. Session 实践与 context 经济学（D-15/D-16，推荐实践）
 
