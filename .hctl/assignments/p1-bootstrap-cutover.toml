@@ -1,0 +1,41 @@
+# P1 assignment：bootstrap→active 可重放 cutover（codex-27k §3.3 冻结 scope 六条）。
+# 授权链：用户 2026-07-27「cutover 开工」；排班终裁 codex-27k §3.3（authority:user →
+# delegated-to:codex）。author=claude；start 前置（p1-attribution squash）已满足。
+
+schema_version = 1
+id = "p1-bootstrap-cutover"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "claude"
+branch_slug = "p1-bootstrap-cutover"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "precision"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "codex"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "adversarial"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "grok"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
