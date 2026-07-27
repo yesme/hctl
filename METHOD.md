@@ -4,7 +4,7 @@
 
 ## 1. 定位与范围
 
-hctl 是**席位制 harness collaboration kernel**：多家 LLM harness（席位）共享一个 git 仓库协作开发，以 PR 为协作原子、git 事实为唯一真相源。hctl 是**叶子命令**，不是编排器（D-13）：不开窗口、不起服务、不驱动 harness、不常驻。机械层零 LLM、零 REST 常规路径（GitHub API 仅 `gh pr create` / `gh pr merge`，D-01）。信任边界：护栏防失误与漂移，不防恶意；单人类账号模型，多真人/对抗场景显式不在当前范围（D-17/D-38）。
+hctl 是 **seat-based multi-harness orchestration kernel**（席位制多 harness 协作编排内核）：多家 LLM harness（席位）共享一个 git 仓库协作开发，以 PR 为协作原子、git 事实为唯一真相源。hctl 是**叶子命令**，不是 process orchestrator / 进程编排器（D-13）：不开窗口、不起服务、不驱动 harness、不常驻——编排的是 git 事实与义务，不是 agent 进程。机械层零 LLM、零 REST 常规路径（GitHub API 仅 `gh pr create` / `gh pr merge`，D-01）。信任边界：护栏防失误与漂移，不防恶意；单人类账号模型，多真人/对抗场景显式不在当前范围（D-17/D-38）。
 
 ## 2. 术语表（业界词优先，D-20）
 

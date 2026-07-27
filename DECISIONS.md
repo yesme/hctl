@@ -20,7 +20,7 @@
 - **D-10 Memo lane** `amended(D-08)` — 流水账文体；内核零解析零 schema（opaque）；advisory、即合、不占 slot、永不上 author 分支；知识收敛后升格共享文档走 author 流程。〔K-10〕
 - **D-11 咨询模式** `active` — 同 brief 扇出 N 席各自落 memo 再综合；consult 义务 kind 推迟 P2（默认不 claim）。〔K-11〕
 - **D-12 Plan = 渐进固化管道** `active` — 发散(咨询)→综合(memo)→裁定(DECISIONS)→封存(assignments)→fire(人)。〔K-12〕
-- **D-13 交互模型** `amended` — hctl 是叶子命令非编排器；席位=worktree=tab；输出三形态（表格/--json/exit code）+ 自描述输出（含 obligation id 与 holder）。前台阻塞动词改名 **`wait`**（原 wake；业界词优先）；**`run` 移出内核入 adapters**（exec helper）。〔K-13；27e C8〕
+- **D-13 交互模型** `amended` — hctl 是叶子命令，**不是 process orchestrator**（产品定位 = seat-based multi-harness **orchestration kernel**：编排 git 事实与义务，不驱动 harness 进程）；席位=worktree=tab；输出三形态（表格/--json/exit code）+ 自描述输出（含 obligation id 与 holder）。前台阻塞动词改名 **`wait`**（原 wake；业界词优先）；**`run` 移出内核入 adapters**（exec helper）。〔K-13；27e C8〕
 - **D-14 并发物理层** `active` — 一 seat 一常驻 worktree；checkout 权属前台；后台零 checkout（对象库直读 / scratch）；旁路发布走 plumbing。〔K-14〕
 - **D-15 Session 粒度**（推荐实践非法律）`active` — 一任务/一 gate 指派（含完整 re-gate 循环）/一咨询话题一 session；并行度放 session 内 sub-agent；session 是 cache、memory 是数据库。〔K-15〕
 - **D-16 Context 经济学** `active` — 知识金字塔（门面→现状→结论→正文→考古）；收口(closeout)为标准节点类型；brief 带指针不带语料；稳定前缀纪律。〔K-16〕

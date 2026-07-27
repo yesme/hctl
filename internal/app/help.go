@@ -1,6 +1,6 @@
 package app
 
-const Help = `hctl — harness collaboration kernel
+const Help = `hctl — a seat-based multi-harness orchestration kernel
 
 USAGE
   hctl [global options] <command> [arguments]
