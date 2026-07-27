@@ -19,7 +19,8 @@ import (
 // plumbing operations instead of reproducing Git's object and ref semantics.
 type Repo struct {
 	Root      string
-	CommonDir string
+	GitDir    string // per-worktree git directory (linked worktrees differ)
+	CommonDir string // shared across linked worktrees
 	GitBin    string
 }
 
@@ -37,6 +38,11 @@ func Open(ctx context.Context, dir string) (*Repo, error) {
 		return nil, fmt.Errorf("not a git worktree: %w", err)
 	}
 	r.Root = strings.TrimSpace(root)
+	gitDir, err := r.Output(ctx, "rev-parse", "--path-format=absolute", "--git-dir")
+	if err != nil {
+		return nil, fmt.Errorf("resolve git directory: %w", err)
+	}
+	r.GitDir = strings.TrimSpace(gitDir)
 	common, err := r.Output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
 		return nil, fmt.Errorf("resolve git common directory: %w", err)

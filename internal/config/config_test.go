@@ -44,6 +44,36 @@ skill = "unknown"
 door_file = "AGENTS.md"
 `
 
+func TestCoauthorEmailOptionalAndValidated(t *testing.T) {
+	t.Parallel()
+	raw := strings.Replace(validSeats,
+		`token_class = "full"
+[seats.claude.features]`,
+		`token_class = "full"
+coauthor_email = "281844019+a-claude-code-bot[bot]@users.noreply.github.com"
+[seats.claude.features]`,
+		1,
+	)
+	seats, err := DecodeSeats([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seats.Seats["claude"].CoauthorEmail == "" {
+		t.Fatal("expected coauthor_email to decode")
+	}
+	bad := strings.Replace(validSeats,
+		`token_class = "full"
+[seats.claude.features]`,
+		`token_class = "full"
+coauthor_email = "not-an-email"
+[seats.claude.features]`,
+		1,
+	)
+	if _, err := DecodeSeats([]byte(bad)); err == nil || !strings.Contains(err.Error(), "coauthor_email") {
+		t.Fatalf("expected coauthor_email validation error, got %v", err)
+	}
+}
+
 func TestDecodeSeatsAndPatternDisjointness(t *testing.T) {
 	t.Parallel()
 	if _, err := DecodeSeats([]byte(validSeats)); err != nil {
