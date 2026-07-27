@@ -19,7 +19,16 @@ corpus_pass() { echo "PASS ${CORPUS_CASE_ID}"; }
 # Exit 77 = SKIP (runner treats as non-fail). Used when HCTL binary required but absent.
 corpus_skip() { echo "SKIP(${CORPUS_CASE_ID}): $*" >&2; exit 77; }
 
+# Stamp that this case actually invoked the hctl binary (strict runner checks WIRE_CASES).
+corpus_hctl_wire_stamp() {
+  local dir=${CORPUS_WIRE_STAMP_DIR:-}
+  [ -n "$dir" ] || return 0
+  mkdir -p "$dir"
+  : >"$dir/${CORPUS_CASE_ID}.wired"
+}
+
 corpus_require_hctl() {
+  # Resolve binary only — do NOT stamp here (codex-pr38-r2: stamp without invoke).
   if [ -n "${HCTL:-}" ] && [ -x "${HCTL}" ]; then
     return 0
   fi
@@ -32,6 +41,13 @@ corpus_require_hctl() {
     corpus_fail "hctl binary required but not found (set HCTL= path)"
   fi
   corpus_skip "hctl binary not available — pure/spec portion may still be covered; wire CLI after p1-kernel lands"
+}
+
+# Invoke HCTL with stamp (use for any direct binary call outside corpus_hctl).
+corpus_hctl_run() {
+  corpus_require_hctl
+  corpus_hctl_wire_stamp
+  "$HCTL" "$@"
 }
 
 # mktemp workdir + trap; sets CORPUS_WORK and cds there.
