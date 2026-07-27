@@ -13,7 +13,7 @@ classification code 与具体 reason 校验 JSON status；禁止用其他席位�
 | 路径 | 内容 |
 |---|---|
 | `concurrency/` | 基质选型证据两案（#0a/#0b，27c） |
-| `cases/` | BACKLOG #1–#29 可执行案（#29 为 P1 carry 扩展） |
+| `cases/` | BACKLOG #1–#30 可执行案（#29 carry、#30 bootstrap cutover 为 P1 扩展） |
 | `lib/` | 共享沙盘 `common.sh` / `hctl_fixture.sh`；JCS / obligation / derive / receipt 差分 oracle |
 | `run.sh` | **冻结 manifest** runner：缺案/多案失败；strict 下 SKIP 失败 |
 | `BACKLOG.md` | 清单规格与执行注记 |
@@ -48,6 +48,6 @@ HCTL=/tmp/hctl bash tests/corpus/cases/09-begin-retry-reuse-claim.sh
 
 ## Runner 纪律（P1-01 修复）
 
-- 期望集合冻结为 concurrency 2 + cases #01–#29；**不**靠 glob「发现什么算什么」。
+- 期望集合冻结为 concurrency 2 + cases #01–#30；**不**靠 glob「发现什么算什么」。
 - 缺案 / 意外多案 → FAIL。
 - `CORPUS_STRICT=1` 或 `CORPUS_REQUIRE_HCTL=1`：任一 SKIP → FAIL；且 HCTL 必须可执行。

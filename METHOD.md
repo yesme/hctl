@@ -192,6 +192,8 @@ changed_paths(B,B') ∩ candidate_paths(B,H) == ∅
 
 activation 是可重放事实：`enforcement` 字段由 gated PR 置 `active`（P1 交付即其 gate）；此前明标 bootstrap trust、自开自合例外生效，随 activation 自动终止。
 
+**Bootstrap cutover（codex-27k §3.3）**：kernel 从 main first-parent 历史机械识别唯一 bootstrap→active 翻转 commit——历史形状必须为 `active^k · non-active^m`（tip 在前）。k=0 ⇒ 仍为 bootstrap 期；k>0 且 m=0 ⇒ 自创世即 active、无翻转边、无认账集；k>0 且 m>0 ⇒ cutover=最深 active commit。cutover commit 及其 first-parent 祖先构成**有界 bootstrap 边界**：其内的 merge 审计债（UNRECORDED/INVALID_RECEIPT/UNJUDGEABLE）显像为 `ACKNOWLEDGED_BOOTSTRAP_HISTORY` **warning**（detail 保留原 code 与 cutover OID），不再使 WriteGuard 永久禁写；activation commit 本身即 cutover、属边界内（消「active hctl 无法合入 activation 自身」的反循环）。边界之后的上述债一律 error 不放宽；无法定位到 first-parent 线上的债不认账。任何歧义——active→bootstrap 回退、多次翻转、改写历史——⇒ `INVALID_CUTOVER` fail-closed error。历史 seats blob 以宽松解码只读 enforcement 字面（缺失/不可解码=非 active，方向只会收紧为响亮 INVALID_CUTOVER，不会扩大认账集）。**这是有界历史边界，不是 repair**：不伪造 receipt、义务保持 open，P2 repair 负责把认账债转为完整事实。
+
 ## 11. 并发物理层（D-08/D-09/D-14）
 
 - 单写者命名空间三粒度：分支（一任务）/文件（一实例）/ref（一席一链）。

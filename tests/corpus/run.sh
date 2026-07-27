@@ -42,6 +42,7 @@ NUMBERED_CASES=(
   27-streak-forward-env-reset
   28-jcs-vectors
   29-regate-carry
+  30-bootstrap-cutover
 )
 
 # Cases that must exercise the real hctl binary when HCTL is available / required.
@@ -55,6 +56,7 @@ WIRE_CASES=(
   12-dup-assignment-logical-id
   28-jcs-vectors
   29-regate-carry
+  30-bootstrap-cutover
 )
 
 pass=0
@@ -158,7 +160,7 @@ for name in "${CONCURRENCY_CASES[@]}"; do
   run_one "$ROOT/concurrency/$name.sh"
 done
 
-echo "== cases #01-29 =="
+echo "== cases #01-30 =="
 for name in "${NUMBERED_CASES[@]}"; do
   run_one "$ROOT/cases/$name.sh"
 done

@@ -38,3 +38,4 @@
 | 27 | H1→H2→H1 摆动不清 streak；base-only 标 env-reset 且清；ancestry 前进清 | D-34 | codex-27d | `cases/27-streak-forward-env-reset.sh` |
 | 28 | JCS 向量：key 序/escape 同 id；非 ASCII grammar 拒；dup key / lone surrogate 拒 | D-33 | codex-27d | `cases/28-jcs-vectors.sh` |
 | 29 | memo-only base + exact candidate 可 carry；whitespace/message/non-memo base 均拒 | D-04/D-40/D-41 | codex-27k | `cases/29-regate-carry.sh` |
+| 30 | cutover 认账 bootstrap 债为 warning；cutover 后债仍 error；回退/双翻转 INVALID_CUTOVER | D-38/D-39 | codex-27k §3.3 | `cases/30-bootstrap-cutover.sh` |

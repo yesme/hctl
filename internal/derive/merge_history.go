@@ -16,6 +16,10 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 	for _, state := range result.Obligations {
 		statesByAssignment[state.Assignment] = append(statesByAssignment[state.Assignment], state)
 	}
+	cutover, cutoverProblem := e.detectCutover(ctx, snapshot)
+	if cutoverProblem != nil {
+		result.Problems = append(result.Problems, *cutoverProblem)
+	}
 	for _, record := range snapshot.Assignments {
 		states := statesByAssignment[record.Assignment.ID]
 		if len(states) == 0 {
@@ -65,7 +69,7 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 				state.MergedCommit = receiptCommit.OID
 			}
 			if malformedReceipt != nil {
-				e.markMergeDebt(result, states, "INVALID_RECEIPT",
+				e.markMergeDebt(result, states, cutover, receiptCommit.OID, "INVALID_RECEIPT",
 					fmt.Sprintf("assignment %q merge commit %s: %v", record.Assignment.ID, receiptCommit.OID, malformedReceipt))
 				continue
 			}
@@ -75,7 +79,7 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 				state.PR = parsedReceipt.PR
 			}
 			if err := e.validateReceiptReplay(ctx, snapshot, record, states, *receiptCommit, parsedReceipt); err != nil {
-				e.markMergeDebt(result, states, "INVALID_RECEIPT",
+				e.markMergeDebt(result, states, cutover, receiptCommit.OID, "INVALID_RECEIPT",
 					fmt.Sprintf("assignment %q merge commit %s: %v", record.Assignment.ID, receiptCommit.OID, err))
 				continue
 			}
@@ -113,7 +117,7 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 			// A non-squash merge can retain the head commit without ever
 			// producing an exact squash tree on the first-parent line.
 			if snapshot.Reachable[head] {
-				e.markMergeDebt(result, states, "UNJUDGEABLE_MERGE",
+				e.markMergeDebt(result, states, cutover, "", "UNJUDGEABLE_MERGE",
 					fmt.Sprintf("assignment %q head %s is reachable from main without a judgeable squash receipt", record.Assignment.ID, head))
 			}
 			continue
@@ -127,7 +131,7 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 			}
 		}
 		if len(merged.Parents) != 1 {
-			e.markMergeDebt(result, states, "UNJUDGEABLE_MERGE",
+			e.markMergeDebt(result, states, cutover, merged.OID, "UNJUDGEABLE_MERGE",
 				fmt.Sprintf("assignment %q integration commit %s has %d parents", record.Assignment.ID, merged.OID, len(merged.Parents)))
 			continue
 		}
@@ -137,12 +141,12 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 			if strings.Contains(merged.Message, "Hctl-") {
 				code = "INVALID_RECEIPT"
 			}
-			e.markMergeDebt(result, states, code,
+			e.markMergeDebt(result, states, cutover, merged.OID, code,
 				fmt.Sprintf("assignment %q merge commit %s: %v", record.Assignment.ID, merged.OID, err))
 			continue
 		}
 		if err := e.validateReceiptReplay(ctx, snapshot, record, states, *merged, parsed); err != nil {
-			e.markMergeDebt(result, states, "INVALID_RECEIPT",
+			e.markMergeDebt(result, states, cutover, merged.OID, "INVALID_RECEIPT",
 				fmt.Sprintf("assignment %q merge commit %s: %v", record.Assignment.ID, merged.OID, err))
 			continue
 		}
@@ -273,7 +277,24 @@ func receiptMessageNamesAssignment(message, assignment string) bool {
 	return false
 }
 
-func (e Engine) markMergeDebt(result *Result, states []*ObligationState, code, detail string) {
+// markMergeDebt records merge audit debt. Debt whose integration commit lies
+// inside the acknowledged bootstrap boundary (the cutover commit or its
+// first-parent ancestors) is surfaced as ACKNOWLEDGED_BOOTSTRAP_HISTORY at
+// warning severity: bounded history must not permanently trip WriteGuard, but
+// it is not repair — the obligation stays open and no receipt is fabricated.
+// Debt after the cutover (or debt that cannot be placed on the first-parent
+// line at all, mergedOID=="") keeps full error severity.
+func (e Engine) markMergeDebt(result *Result, states []*ObligationState, cutover *bootstrapCutover, mergedOID, code, detail string) {
+	if cutover.covers(mergedOID) {
+		for _, state := range states {
+			state.AuditDebt = acknowledgedBootstrapCode
+		}
+		result.Problems = append(result.Problems, facts.Problem{
+			Code: acknowledgedBootstrapCode, Severity: facts.SeverityWarning,
+			Detail: fmt.Sprintf("bootstrap history before cutover %s (%s): %s", cutover.OID, code, detail),
+		})
+		return
+	}
 	for _, state := range states {
 		state.AuditDebt = code
 	}
