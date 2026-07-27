@@ -31,6 +31,8 @@ def validate_preimage(pre: dict[str, Any]) -> None:
         if set(asg.keys()) != {"id", "blob"}:
             raise ValueError("static assignment must be {id,blob} only")
     elif "assign_event" in asg:
+        if set(asg.keys()) != {"assign_event"}:
+            raise ValueError("dynamic assignment must be {assign_event} only (additionalProperties:false)")
         validate_oid(asg["assign_event"])
     else:
         raise ValueError("assignment shape invalid")

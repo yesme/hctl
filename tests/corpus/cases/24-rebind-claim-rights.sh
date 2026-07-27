@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Case #24: rebind A→B：M 前只有 A 可 claim，M 后只有 B
 # D: D-37 | Source: codex-27d | Mechanical: coordinator named by config revision
-# Mode: pure  (pure | hybrid | deferred-p2 | hctl-wire)
+# Mode: pure (differential oracle — same predicate as merge-assignee)
 set -euo pipefail
 CORPUS_CASE_ID="24-rebind-claim-rights"
 CORPUS_ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -9,14 +9,10 @@ CORPUS_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$CORPUS_ROOT/lib/common.sh"
 export PYTHONPATH="$CORPUS_ROOT/lib${PYTHONPATH:+:$PYTHONPATH}"
 
-python3 - <<'PY'
-def can_claim_merge(actor, config_coord):
-    return actor == config_coord
-assert can_claim_merge("claude", "claude")
-assert not can_claim_merge("grok", "claude")
-# after rebind
-assert can_claim_merge("grok", "grok")
-assert not can_claim_merge("claude", "grok")
-print("ok")
-PY
+[ "$(corpus_py derive_rules.py merge-assignee claude claude)" = "ok" ] || corpus_fail "A before rebind"
+[ "$(corpus_py derive_rules.py merge-assignee grok claude)" = "deny" ] || corpus_fail "B denied before rebind"
+# after rebind coordinator is grok
+[ "$(corpus_py derive_rules.py merge-assignee grok grok)" = "ok" ] || corpus_fail "B after rebind"
+[ "$(corpus_py derive_rules.py merge-assignee claude grok)" = "deny" ] || corpus_fail "A denied after rebind"
+
 corpus_pass

@@ -2,34 +2,52 @@
 
 语料断言**护栏与 git 物理**，不断言 LLM 行为（D-17）。每案自带沙盘（mktemp 一次性 repo），零网络；身份与时钟冻结、可重复；退出码即判定（0=PASS，1=FAIL，77=SKIP）。案头注明对应定案与出处。
 
+**规范权威永远是 Go 内核**（D-24/27m；codex-27k §2.1）。`lib/*.py` 是**窄 helper / 差分探针**——可生成 payload 与 JCS/obligation id；**不得**以 Python 完整 known-event union 宣称镜像 `protocol` 或把 Python `OK` 当 gate 证据。known CLAIM/VERDICT/CANCEL 的 OK/CORRUPT 必须以真实 `hctl` 路径断言。
+
+case #6 的每个 known-event 向量使用独立 fixture，并按 planted event OID、seat、
+classification code 与具体 reason 校验 JSON status；禁止用其他席位残留问题或裸
+`CORRUPT` 替目标向量代打。
+
 ## 布局
 
 | 路径 | 内容 |
 |---|---|
 | `concurrency/` | 基质选型证据两案（#0a/#0b，27c） |
 | `cases/` | BACKLOG #1–#28 可执行案 |
-| `lib/` | 共享沙盘 `common.sh`；JCS / obligation id / derive 纯谓词 |
-| `run.sh` | 薄壳 runner：逐案跑、汇总 pass/fail/skip |
+| `lib/` | 共享沙盘 `common.sh` / `hctl_fixture.sh`；JCS / obligation / derive / receipt 差分 oracle |
+| `run.sh` | **冻结 manifest** runner：缺案/多案失败；strict 下 SKIP 失败 |
 | `BACKLOG.md` | 清单规格与执行注记 |
 
 ## 运行
 
 ```bash
+# 本地探索（允许 wire 案在无二进制时 SKIP）
 bash tests/corpus/run.sh
-# 单案：
-bash tests/corpus/cases/28-jcs-vectors.sh
-bash tests/corpus/concurrency/chain-claim-mutex.sh
+
+# 门禁 / 接线验收：必须提供真实 hctl；manifest 完整；零 SKIP
+go build -o /tmp/hctl ./cmd/hctl
+HCTL=/tmp/hctl CORPUS_REQUIRE_HCTL=1 bash tests/corpus/run.sh
+# 等价：
+HCTL=/tmp/hctl CORPUS_STRICT=1 bash tests/corpus/run.sh
 ```
 
-可选：`HCTL=/path/to/hctl` 或 `PATH` 含 `hctl` 时，标为 `hctl-wire` 的案可追加 CLI 实装断言（当前 #1–28 以 **pure/hybrid 规格护栏** 为主，与 p1-kernel **并行起草**；kernel 落 main 后接线收口——见 assignment `p1-corpus`）。
+单案：
+
+```bash
+HCTL=/tmp/hctl bash tests/corpus/cases/09-begin-retry-reuse-claim.sh
+```
+
+`HCTL=/usr/bin/true` 在 require 模式下会红：wire 案校验 help/version/status 行为，不是空钩子。
 
 ## 模式
 
-- **pure**：不依赖 git 多 clone 的判定函数 / schema 纪律（可独立于 hctl）。
-- **hybrid**：git 沙盘物理 + 纯谓词（CAS、lease、ancestry、双 ref 反例等）。
+- **pure**：差分 oracle / schema 纪律（不单独代表 kernel PASS）。
+- **hybrid**：git 沙盘物理 + 差分 oracle。
 - **deferred-p2**：P1 必须报 unsupported 的边界（如跨席 HANDOFF）。
-- **hctl-wire**：需二进制；未提供时 SKIP(77)，不记 fail。
+- **hctl-wire**：调用真实 `hctl` CLI；未提供时 SKIP(77)；`CORPUS_REQUIRE_HCTL=1` 下 SKIP=FAIL。
 
-## 与 p1-kernel
+## Runner 纪律（P1-01 修复）
 
-本 assignment 的 quorum green 预期发生在：语料 runner 全绿 **且** 需 CLI 的案在 kernel 入 main 后接线仍绿。`needs=[]` 并行是设计意图（27j）。
+- 期望集合冻结为 concurrency 2 + cases #01–#28；**不**靠 glob「发现什么算什么」。
+- 缺案 / 意外多案 → FAIL。
+- `CORPUS_STRICT=1` 或 `CORPUS_REQUIRE_HCTL=1`：任一 SKIP → FAIL；且 HCTL 必须可执行。

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Case #19: escalated 后 branch progress ⇒ 不自动解冻；仅三径可清
 # D: D-34 | Source: codex-27c | Mechanical: frozen priority over progress
-# Mode: pure  (pure | hybrid | deferred-p2 | hctl-wire)
+# Mode: pure (differential oracle)
 set -euo pipefail
 CORPUS_CASE_ID="19-escalated-progress-no-thaw"
 CORPUS_ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -11,22 +11,18 @@ export PYTHONPATH="$CORPUS_ROOT/lib${PYTHONPATH:+:$PYTHONPATH}"
 
 python3 - <<'PY'
 import derive_rules
-# enter escalated
 s = derive_rules.streak_after_reclaims(["non_forward", "non_forward"])
 assert s["escalated"]
-# explicit: progress classification while escalated must not clear
-def on_progress_while_escalated(state, progress_class):
-    if state["escalated"]:
-        return state  # no change
-    ...
-state = {"escalated": True, "streak": 2}
-assert on_progress_while_escalated(state, "forward")["escalated"] is True
+# further progress classifications while escalated do not clear red
+s2 = derive_rules.streak_after_reclaims(
+    ["non_forward", "non_forward", "forward", "environment_reset"],
+)
+assert s2["escalated"] and s2["color"] == "red"
 # three thaw paths only
-def thaw(path, state):
-    if path in ("cancel_claim", "cancel_obligation", "new_assignment_revision"):
-        return {"escalated": False, "streak": 0}
-    raise ValueError("no")
-assert thaw("cancel_claim", state)["escalated"] is False
+for path in ("cancel_claim", "cancel_obligation", "new_assignment_revision"):
+    assert derive_rules.thaw_escalated(path)
+assert not derive_rules.thaw_escalated("forward_progress")
+assert not derive_rules.thaw_escalated("verdict")
 print("ok")
 PY
 corpus_pass

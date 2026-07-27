@@ -116,24 +116,48 @@ def push_outcome_delivered(repo: str, pending: str, remote_tip: str) -> str:
     return "delivered"
 
 
+
 def three_way_event(ev: dict[str, Any], *, chain_seat: str, known_types: set[str]) -> str:
-    """Return CORRUPT_CHAIN | UNSUPPORTED_FACTS | OK."""
+    """Narrow helper ONLY: envelope integrity + unknown type/major (D-39 prefix).
+
+    Support domain (codex-27k §2.1 / terminal packet):
+      - CORRUPT_CHAIN: missing/invalid envelope, seat mismatch
+      - UNSUPPORTED_FACTS: unknown type or future major *after* valid envelope
+      - KNOWN_TYPE_DEFER: known P1 type body is NOT classified here
+
+    Normative OK/CORRUPT for known CLAIM/VERDICT/CANCEL is Go kernel only.
+    Corpus must plant events and assert via hctl; never treat Python OK as gate evidence.
+    """
     if not isinstance(ev, dict):
         return "CORRUPT_CHAIN"
-    if "type" not in ev:
+    required_env = {"schema_version", "type", "actor", "created_at"}
+    if not required_env.issubset(ev.keys()):
+        return "CORRUPT_CHAIN"
+    if "v" in ev:
+        return "CORRUPT_CHAIN"
+    major = ev["schema_version"]
+    if not isinstance(major, int) or isinstance(major, bool) or major < 1:
         return "CORRUPT_CHAIN"
     t = ev["type"]
-    if not isinstance(t, str):
+    if not isinstance(t, str) or not t:
         return "CORRUPT_CHAIN"
-    actor = ev.get("actor")
-    if isinstance(actor, dict) and actor.get("seat") != chain_seat:
+    actor = ev["actor"]
+    if not isinstance(actor, dict):
         return "CORRUPT_CHAIN"
-    major = ev.get("schema_version", ev.get("v", 0))
+    if actor.get("seat") != chain_seat:
+        return "CORRUPT_CHAIN"
+    if not isinstance(actor.get("machine"), str) or not actor.get("machine"):
+        return "CORRUPT_CHAIN"
+    if "session" not in actor:
+        return "CORRUPT_CHAIN"
+    created = ev["created_at"]
+    if not isinstance(created, str) or not created:
+        return "CORRUPT_CHAIN"
     if t not in known_types:
         return "UNSUPPORTED_FACTS"
-    if isinstance(major, int) and major > 1:
+    if major > 1:
         return "UNSUPPORTED_FACTS"
-    return "OK"
+    return "KNOWN_TYPE_DEFER"
 
 
 def patterns_disjoint(patterns: list[str]) -> bool:
@@ -223,6 +247,33 @@ def loader_merge_assignee_ok(assignee: str, coordinator: str) -> bool:
     return assignee == coordinator
 
 
+def reclaim_allowed(*, escalated: bool) -> bool:
+    """D-34: escalated ⇒ frozen; re-claim denied until thaw path."""
+    return not escalated
+
+
+def thaw_escalated(path: str) -> bool:
+    """D-34 three thaw paths only (no progress-based thaw)."""
+    return path in ("cancel_claim", "cancel_obligation", "new_assignment_revision")
+
+
+def rebind_allowed(*, active_merge_claims_old_coord: int) -> bool:
+    """D-37: rebind blocked while old coordinator holds active merge claim."""
+    return active_merge_claims_old_coord == 0
+
+
+def assignment_revision_moved(prev_blob: str, cur_blob: str) -> bool:
+    """D-33: any blob change (incl. non-semantic) is a new assignment revision."""
+    return prev_blob != cur_blob
+
+
+def integrity_before_progress(chain_linear: bool) -> Optional[str]:
+    """D-34: ref/chain integrity runs before progress classification."""
+    if not chain_linear:
+        return "CORRUPT_CHAIN"
+    return None
+
+
 def receipt_config_ok(
     claim_config_blob: str,
     hctl_base_config_blob: str,
@@ -237,8 +288,22 @@ def receipt_config_ok(
     raise ValueError(phase)
 
 
-def quorum_counts(verdict: dict[str, Any], *, required_coverage: str) -> bool:
-    """D-41 four conditions simplified."""
+def quorum_counts(
+    verdict: dict[str, Any],
+    *,
+    required_coverage: str,
+    expected_revision: Optional[dict[str, str]] = None,
+) -> bool:
+    """D-41 four conditions: exact revision + COMPLETE + APPROVE + covering scope.
+
+    expected_revision is required (merge-time {base,head}). Passing None is a
+    programming error — raise rather than silently skip freshness (claude F2′ / codex P2).
+    """
+    if expected_revision is None:
+        raise TypeError("quorum_counts requires expected_revision={base,head}")
+    rev = verdict.get("revision") or {}
+    if rev.get("base") != expected_revision.get("base") or rev.get("head") != expected_revision.get("head"):
+        return False
     if verdict.get("completeness") != "COMPLETE":
         return False
     if verdict.get("decision") != "APPROVE":
@@ -249,19 +314,16 @@ def quorum_counts(verdict: dict[str, Any], *, required_coverage: str) -> bool:
         if kind == "full":
             return True
         if kind == "composite":
-            # must include a full part or fix+delta covering full surface — simplified:
             parts = scope.get("parts") or []
             kinds = {p.get("kind") for p in parts}
-            # delta-only is NOT enough
             if kinds == {"delta"}:
                 return False
             if "full" in kinds:
                 return True
-            # fix_verification alone may not cover full assignment surface
             if kinds == {"fix_verification"}:
-                return required_coverage == "fix_only"
+                return False  # fix_only is not a required_coverage mode for full surface
             if "fix_verification" in kinds and "delta" in kinds:
-                return True  # sealed as covering when assignment asked composite
+                return True
             return False
         return False
     return False
@@ -329,9 +391,13 @@ def main(argv: list[str]) -> int:
         )
         return 0
     if cmd == "quorum":
+        if len(argv) < 5:
+            print("usage: derive_rules.py quorum <verdict-json> <coverage> <expected-revision-json>", file=sys.stderr)
+            return 2
         v = json.loads(argv[2])
         cov = argv[3]
-        print("green" if quorum_counts(v, required_coverage=cov) else "not-green")
+        rev = json.loads(argv[4])
+        print("green" if quorum_counts(v, required_coverage=cov, expected_revision=rev) else "not-green")
         return 0
     if cmd == "latest-wins":
         vs = json.loads(argv[2])
