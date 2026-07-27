@@ -1,0 +1,43 @@
+# P1 assignment: p1-corpus fix-forward (wire + strict runner + oracle).
+# branch_slug matches PR #38 work/grok/p1-corpus-wire.
+# Authorization: user directed fix-forward after codex-27g/claude-27n retro
+# REQUEST_CHANGES, and codex-27h P1-01 requiring a frozen assignment for this slug
+# (2026-07-27 session; dogfood continuation of memory/claude-2026-07-27j.md schedule).
+
+schema_version = 1
+id = "p1-corpus-wire"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "grok"
+branch_slug = "p1-corpus-wire"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "precision"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "codex"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "spec-conformance"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "claude"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
