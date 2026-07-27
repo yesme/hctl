@@ -1,0 +1,44 @@
+# P1.1 assignment: 归因收口——seat init + trailer 机械化（范围见 memory/claude-2026-07-27r.md §A2
+# P1.1 四件：loader 认识 coauthor_email → seats.toml 补表 → hctl seat init 最小版 → trailer 消费链 fail-closed）。
+# 授权：用户 2026-07-27「p1-attribution可以assign，但是先别开工」——本 assignment 即该裁决转录
+# （D-38 级④ authority:user 声明）。**开工冻结**：begin/claim 须候用户另行开工令；
+# 另有前置：PR #38（p1-corpus-wire）收口（27r §A3）。
+# 提案全文：grok-2026-07-27j（PR #41）；阶段裁定：claude-2026-07-27r §A。
+
+schema_version = 1
+id = "p1-attribution"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "grok"
+branch_slug = "p1-attribution"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "precision"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "codex"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "spec-conformance"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "claude"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
