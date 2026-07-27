@@ -34,7 +34,10 @@ type Seat struct {
 	AuthorBranchPatterns []string `toml:"author_branch_patterns"`
 	MemoBranchPatterns   []string `toml:"memo_branch_patterns"`
 	TokenClass           string   `toml:"token_class"`
-	Features             Features `toml:"features"`
+	// CoauthorEmail is optional stable GitHub bot email for Co-authored-by trailers
+	// (attribution only; never an identity hash / quorum input). See p1-attribution.
+	CoauthorEmail string   `toml:"coauthor_email"`
+	Features      Features `toml:"features"`
 }
 
 type Features struct {
@@ -108,6 +111,20 @@ func (a AssignmentRecord) BranchRef() string {
 
 func (a AssignmentRecord) SourceKey() string {
 	return a.Source.Commit + ":" + a.Source.Path + ":" + a.Source.Blob
+}
+
+func validateCoauthorEmail(email string) error {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return fmt.Errorf("empty")
+	}
+	if strings.ContainsAny(email, "\r\n<>") {
+		return fmt.Errorf("contains unsafe characters")
+	}
+	if !strings.Contains(email, "@") {
+		return fmt.Errorf("must contain @")
+	}
+	return nil
 }
 
 func ValidateSeats(c Seats) error {
@@ -204,6 +221,11 @@ func validateSeat(id string, seat Seat) error {
 	}
 	if seat.TokenClass != "" && seat.TokenClass != "full" && seat.TokenClass != "limited" {
 		return fmt.Errorf("seat %q has invalid token_class %q", id, seat.TokenClass)
+	}
+	if seat.CoauthorEmail != "" {
+		if err := validateCoauthorEmail(seat.CoauthorEmail); err != nil {
+			return fmt.Errorf("seat %q coauthor_email: %w", id, err)
+		}
 	}
 	for name, value := range map[string]string{
 		"session_resume":    seat.Features.SessionResume,

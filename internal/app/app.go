@@ -77,7 +77,9 @@ func (a *App) Run(ctx context.Context, argv []string) int {
 			info.Version, valueOr(info.Revision, "unavailable"), info.Modified, info.Go)
 		return ExitOK
 	case "trailer":
-		return a.commandTrailer(options.Args)
+		return a.commandTrailer(ctx, options, options.Args)
+	case "seat":
+		return a.commandSeat(ctx, options, options.Args)
 	}
 	repo, err := gitx.Open(ctx, options.RepoDir)
 	if err != nil {

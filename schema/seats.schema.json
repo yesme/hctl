@@ -77,6 +77,11 @@
           "description": "memo lane, canonical form refs/heads/memo/<seat>/* (D-08); must be disjoint from every author pattern (doctor)"
         },
         "token_class": { "enum": ["full", "limited"] },
+        "coauthor_email": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Optional stable GitHub App bot email for Co-authored-by trailers (attribution only; p1-attribution). Not an identity-hash or quorum input."
+        },
         "features": {
           "type": "object",
           "additionalProperties": false,

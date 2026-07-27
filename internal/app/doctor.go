@@ -10,6 +10,7 @@ import (
 
 	"github.com/yesme/hctl/internal/buildcheck"
 	"github.com/yesme/hctl/internal/gitx"
+	"github.com/yesme/hctl/internal/identity"
 )
 
 type doctorCheck struct {
@@ -74,6 +75,8 @@ func (a *App) commandDoctor(ctx context.Context, load *loaded, args []string) in
 	add("hooks", hookStatus, hookDetail)
 	ghStatus, ghDetail := checkGHAuth(ctx, load.Repo.Root)
 	add("gh-auth", ghStatus, ghDetail)
+	attrStatus, attrDetail := checkAttribution(load)
+	add("attribution", attrStatus, attrDetail)
 
 	hasError := false
 	for _, check := range checks {
@@ -142,6 +145,36 @@ func checkGHAuth(ctx context.Context, dir string) (string, string) {
 		return "error", strings.TrimSpace(string(out))
 	}
 	return "ok", firstLine(string(out))
+}
+
+func checkAttribution(load *loaded) (string, string) {
+	if load.Snapshot.Seats.Config.SchemaVersion != 1 {
+		return "warning", "seats configuration unavailable; attribution chain not checked"
+	}
+	if load.SeatErr != nil {
+		return "warning", "seat unresolved; attribution checks skipped (" + load.SeatErr.Error() + ")"
+	}
+	if load.Seat == "" {
+		return "warning", "seat unknown; pass --seat or run from a seat worktree, then hctl seat init"
+	}
+	local, err := identity.LoadLocal(load.Repo)
+	if err != nil {
+		return "error", err.Error()
+	}
+	// Same shared ResolveCoauthorEmail as trailer/seat init (ownership + seat match).
+	email, source, err := ResolveCoauthorEmail(load.Seat, load.Snapshot.Seats.Config, local)
+	if err != nil {
+		status := "warning"
+		if load.Snapshot.Seats.Config.Enforcement == "active" {
+			status = "error"
+		}
+		return status, err.Error() + "; run hctl seat init or set seats.toml coauthor_email"
+	}
+	detail := fmt.Sprintf("seat=%s email=%s source=%s", load.Seat, email, source)
+	if source == "seats" && local.CoauthorEmail == "" {
+		detail += "; recommend hctl seat init for local persistence"
+	}
+	return "ok", detail
 }
 
 func firstLine(value string) string {

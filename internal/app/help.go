@@ -7,7 +7,8 @@ USAGE
 
 P1 COMMANDS
   hctl doctor
-      Check repository configuration, seat identity, ref observation, hooks,
+      Check repository configuration, seat identity, attribution chain
+      (coauthor email resolution / seat mismatch), ref observation, hooks,
       GitHub auth, Go version, enforcement, and the binary kernel pin.
 
   hctl status [--json]
@@ -44,10 +45,19 @@ P1 COMMANDS
       otherwise polls the remote ref plane silently until attention changes or
       timeout. Minimum interval is 250ms.
 
+  hctl seat init [--email <addr>] [--machine-alias <name>]
+      Write per-worktree git-dir hctl/local.toml for the detected seat
+      (linked worktrees do not share it). Default coauthor_email comes from
+      seats.toml; --email overrides. Known other-seat bot emails are rejected.
+      Offline-local: does not contact the remote. Idempotent.
+
   hctl trailer
-      Print a Co-authored-by trailer from HCTL_MODEL_DISPLAY and
-      HCTL_REASONING_EFFORT plus HCTL_COAUTHOR_EMAIL. Missing runtime
-      attribution fails closed.
+      Print a Co-authored-by trailer. Model and effort come only from
+      HCTL_MODEL_DISPLAY and HCTL_REASONING_EFFORT (session adapters are P2).
+      Email resolves HCTL_COAUTHOR_EMAIL, then worktree local.toml, then
+      seats.toml on local HEAD. Known other-seat bot emails are rejected on
+      every path (same guard as doctor). Offline-local: no remote fetch.
+      Any missing piece fails closed (D-23).
 
   hctl version
   hctl help
