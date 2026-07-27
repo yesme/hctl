@@ -223,6 +223,7 @@ func TestSeatInitAndTrailerAttribution(t *testing.T) {
 }
 
 // P1-03 original counterexample: same payload trailer vs doctor must not fork.
+// Both must nonzero; doctor attribution status must be error (even under bootstrap).
 func TestTrailerDoctorSamePayloadNoForkOnCrossSeatEmail(t *testing.T) {
 	repo, _ := appFixtureWithCoauthors(t)
 	t.Setenv("HCTL_MODEL_DISPLAY", "Grok 4.5")
@@ -241,19 +242,58 @@ func TestTrailerDoctorSamePayloadNoForkOnCrossSeatEmail(t *testing.T) {
 
 	tCode, tOut, tErr := run("trailer")
 	dCode, dOut, dErr := run("doctor")
+
+	// Both producers of the policy decision must refuse (no exit-code fork).
 	if tCode == 0 {
-		t.Fatalf("trailer must reject cross-seat bot (original counterexample closed): out=%s err=%s", tOut, tErr)
+		t.Fatalf("trailer must reject cross-seat bot: out=%s err=%s", tOut, tErr)
+	}
+	if dCode == 0 {
+		t.Fatalf("doctor must exit nonzero on cross-seat bot under bootstrap: out=%s err=%s", dOut, dErr)
 	}
 	if !strings.Contains(tErr, "configured for seat") {
 		t.Fatalf("trailer error must name ownership: %s", tErr)
 	}
-	// Doctor must also surface ownership error (same ResolveCoauthorEmail).
-	if !strings.Contains(dOut, "configured for seat") && !strings.Contains(dErr, "configured for seat") {
-		t.Fatalf("doctor must use same ownership guard: code=%d out=%s err=%s", dCode, dOut, dErr)
+	attrLine := ""
+	for _, line := range strings.Split(dOut, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "attribution") {
+			attrLine = line
+			break
+		}
 	}
-	// Fork closed: trailer no longer exit-0 while doctor exit-1 on this payload.
-	if tCode == 0 && dCode != 0 {
-		t.Fatal("producer/doctor fork reappeared")
+	if !strings.Contains(attrLine, "error") {
+		t.Fatalf("doctor attribution must be status=error (not warning): %q\nfull:\n%s", attrLine, dOut)
+	}
+	if !strings.Contains(attrLine, "configured for seat") {
+		t.Fatalf("doctor attribution must name ownership: %q", attrLine)
+	}
+
+	// Adjacent: local-seat mismatch is also a hard doctor error under bootstrap.
+	t.Setenv("HCTL_COAUTHOR_EMAIL", "")
+	if err := os.MkdirAll(filepath.Join(repo, ".git", "hctl"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Write mismatched local (same worktree git-dir).
+	content := "seat = \"claude\"\ncoauthor_email = \"custom@example.com\"\n"
+	if err := os.WriteFile(filepath.Join(repo, ".git", "hctl", "local.toml"), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tCode, _, tErr = run("trailer")
+	dCode, dOut, _ = run("doctor")
+	if tCode == 0 {
+		t.Fatalf("trailer must reject local seat mismatch: %s", tErr)
+	}
+	if dCode == 0 {
+		t.Fatalf("doctor must exit nonzero on local seat mismatch: %s", dOut)
+	}
+	attrLine = ""
+	for _, line := range strings.Split(dOut, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "attribution") {
+			attrLine = line
+			break
+		}
+	}
+	if !strings.Contains(attrLine, "error") || !strings.Contains(attrLine, "does not match") {
+		t.Fatalf("doctor must error on local seat mismatch: %q", attrLine)
 	}
 }
 

@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,13 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/yesme/hctl/internal/config"
 	"github.com/yesme/hctl/internal/gitx"
+)
+
+// Hard attribution policy violations — doctor must report error under any
+// enforcement (bootstrap warning is only for missing chain, not conflicts).
+var (
+	ErrEmailOwnedByOtherSeat = errors.New("coauthor email owned by another seat")
+	ErrLocalSeatMismatch     = errors.New("local attribution seat mismatch")
 )
 
 // LocalRelPath is seat attribution state under the per-worktree git dir
@@ -107,10 +115,15 @@ func RejectEmailOwnedByOtherSeat(seat, email string, seats config.Seats) error {
 		other := strings.TrimSpace(cfg.CoauthorEmail)
 		if other != "" && strings.EqualFold(other, email) {
 			return fmt.Errorf(
-				"coauthor_email %q is configured for seat %q, not current seat %q",
-				email, id, seat,
+				"%w: coauthor_email %q is configured for seat %q, not current seat %q",
+				ErrEmailOwnedByOtherSeat, email, id, seat,
 			)
 		}
 	}
 	return nil
+}
+
+// IsHardAttributionConflict reports policy violations that must never soft-warn.
+func IsHardAttributionConflict(err error) bool {
+	return errors.Is(err, ErrEmailOwnedByOtherSeat) || errors.Is(err, ErrLocalSeatMismatch)
 }

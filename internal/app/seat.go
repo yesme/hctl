@@ -137,8 +137,8 @@ func (a *App) loadAttributionLocal(ctx context.Context, repo *gitx.Repo, options
 func ResolveCoauthorEmail(seat string, seats config.Seats, local identity.LocalConfig) (string, string, error) {
 	if local.Seat != "" && local.Seat != seat {
 		return "", "", fmt.Errorf(
-			"local attribution seat %q does not match current seat %q; re-run hctl seat init",
-			local.Seat, seat,
+			"%w: local attribution seat %q does not match current seat %q; re-run hctl seat init",
+			identity.ErrLocalSeatMismatch, local.Seat, seat,
 		)
 	}
 	if seat == "" {

@@ -164,6 +164,12 @@ func checkAttribution(load *loaded) (string, string) {
 	// Same shared ResolveCoauthorEmail as trailer/seat init (ownership + seat match).
 	email, source, err := ResolveCoauthorEmail(load.Seat, load.Snapshot.Seats.Config, local)
 	if err != nil {
+		// Known-other-seat ownership and local-seat mismatch are hard errors under
+		// any enforcement (codex-pr65#P1-03). Only a missing chain may soft-warn
+		// while enforcement=bootstrap.
+		if identity.IsHardAttributionConflict(err) {
+			return "error", err.Error()
+		}
 		status := "warning"
 		if load.Snapshot.Seats.Config.Enforcement == "active" {
 			status = "error"
