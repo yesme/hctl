@@ -13,7 +13,8 @@ P1 COMMANDS
   hctl status [--json]
       Fetch the ref plane and reconcile all assignments, claims, verdicts,
       quorum expressions, and the merge slot. Every row includes the full
-      obligation ID, holder, state, and next action.
+      obligation ID, holder, state, and next action. A narrowly carried green
+      verdict names memo-base-equivalent plus its original evidence.
 
   hctl claim <obligation> [--reclaim <claim-oid>]
       Acquire an obligation by local update-ref CAS followed by a remote
@@ -32,10 +33,11 @@ P1 COMMANDS
       report commit must already be reachable from the revision base.
 
   hctl merge <pr> [--check]
-      The configured coordinator rechecks exact revision, required quorum,
-      capacity=1, config pin, and receipt. --check prints the receipt without
-      calling GitHub. The mutating form performs a matched-head squash merge
-      and post-verifies parent, tree, and receipt.
+      The configured coordinator rechecks revision freshness (exact or the
+      memo-base-equivalent carry proof), required quorum, capacity=1, config
+      pin, and receipt. --check prints the receipt without calling GitHub. The
+      mutating form performs a matched-head squash merge and post-verifies
+      parent, tree, and receipt.
 
   hctl wait [--timeout <duration>] [--interval <duration>] [--json]
       Foreground-only basic wait. Returns immediately for current attention;

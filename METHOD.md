@@ -109,11 +109,67 @@ streak==1 ⇒ 黄（期望 failover）；streak≥2 ⇒ 红 + escalated
 
 **Gate 三轴**：mode（required/advisory/observe）× quorum（AST 闭集）× on_timeout（escalate / 预声明 deputy / proceed——required+proceed 非法）。threshold 是展示给 gater 的裁量参数，内核不读 severity。
 
-**法律**：freshness = exact `{base,head}`；gater ≠ author；required 禁 silent skip；同席只计一票。
+**法律**：freshness 默认 = exact `{base,head}`；唯一例外是下述 `memo-base-equivalent` 派生 carry。gater ≠ author；required 禁 silent skip；同席只计一票。旧 VERDICT/CLAIM 的 wire revision 永不改写成新 revision。
 
-**Verdict**：必须引用 active claim OID + exact revision + report 指针（§3 硬门）+ `scope` + `completeness`。per (gater, obligation, revision) **latest-wins**。required quorum 只计四条件齐备者：exact revision、COMPLETE、APPROVE、scope 覆盖要求的评审面。
+**Verdict**：必须引用 active claim OID + exact revision + report 指针（§3 硬门）+ `scope` + `completeness`。per (gater, obligation, revision) **latest-wins**。required quorum 只计四条件齐备者：D-04/D-40 freshness（exact 或窄 carry）、COMPLETE、APPROVE、scope 覆盖要求的评审面。
 
-**评审协议（D-41）**：首轮 scope=full；后续轮 = fix_verification（findings 清单销账）+ delta（blob 两端），范围由机械规则定义、单调收缩。INCOMPLETE 必须明示未覆盖面；partial-silent 禁止。晚期发现走逸出程序：标 late-finding+原因；merge 前=latest-wins verdict（REQUEST_CHANGES 失绿阻断）；merge 后=NOTE+人裁修复 assignment；不重启封口面。
+### 8.1 最窄 green-verdict carry
+
+carry 只消除 gate memo 合入 main 造成的自激 re-gate；它不是通用的“看起来无关”判断。定义：
+
+```text
+candidate_fp(base, head) =
+  sha256(
+    ordered first-parent candidate commits:
+      author identity bytes（name/email；不含 author date）
+      full commit-message bytes（含 trailer 与尾换行）
+      exact tree delta against parent:
+        sorted(path bytes,
+               old mode/type/blob-or-absent,
+               new mode/type/blob-or-absent)
+  )
+```
+
+每个 candidate commit 必须恰有一个 parent；merge/non-first-parent candidate 不 carry。fingerprint 保留 whitespace、binary、mode、symlink/submodule type、rename-as-delete/add、commit 顺序与 message/trailer；只排除 rebase 会改写的 parent OID、author date、committer metadata。禁止以 `git patch-id --stable` 作安全边界（它会吞掉 whitespace 差异）。
+
+对旧绿票 `V{B,H}` 与当前 revision `{B',H'}`，下列条件必须全部可证：
+
+```text
+V is the newest verdict for the same assignment/gate obligation
+V == accepted APPROVE + COMPLETE + covering scope
+V.claim is still the current claim, stale only because revision moved
+same assignment / gate obligation / branch / PR
+is_ancestor(B, B')
+candidate_fp(B,H) == candidate_fp(B',H')
+changed_paths(B,B') ⊆ memory/**
+changed_paths(B,B') ∩ candidate_paths(B,H) == ∅
+```
+
+任一 Git 对象、祖先、PR、path 或 fingerprint 条件不可证即 false；`.hctl/**`、DECISIONS、METHOD、schema、源码等任一 non-memo base 变化均要求 exact re-gate。更新 verdict（即使无效）、REQUEST_CHANGES、INCOMPLETE、新 claim、assignment/obligation/PR/branch 改变也不回退复用旧绿票。carry 是 derive 结果，不铸新事件；JSON 输出 `carried:{kind:"memo-base-equivalent",verdict,claim,report,revision}`，人读 status 同时显示 `carried: memo-base-equivalent` 与原证据。
+
+### 8.2 Finding ownership 与 closure packet
+
+- finding 仅 originating gater 可置 `CLOSED`；author 只置 `ADDRESSED`，另一 gate 只给 supporting/conflicting evidence。状态词闭集：`ADDRESSED / CLOSED(owner-only) / NOT_EVALUATED / OUT_OF_SCOPE+owner`。
+- required-gate corpus 的“规范实现坏而测试仍绿”本身为 P1，不因别处另有单测降级。
+- 每条 P1 的 closure packet 是唯一 ledger 中的五件机械证据：原始反例原样固化、相邻 mutation、同 payload 的 oracle/kernel 差分（适用时）、mutation sensitivity（拆目标 guard 必红）、happy/fail-closed 成对。author response 回答“这些证据为何足以关闭”，不只罗列改了什么。
+- 两席先独立审同一 frozen head；author 再动手前，coordinator 运行 reconciliation barrier，把两份 findings 归一成唯一 ledger。ID/owner/severity/closure 冲突当场调解，调不拢即上提用户；author 不接收两个横向漂移的 repair 清单。
+
+### 8.3 一轮一个批次
+
+```text
+0. 用户授权 assignment；可验证前置写 needs
+1. preflight：assignment/branch_slug/needs/PR/obligation/trailer
+2. author 自验并冻结 candidate T
+3. required gates 并行独立审同一 T
+4. reconciliation barrier 产出唯一 finding ledger
+5. author 一次处理整批，只 push 一次 T2
+6. finding owners 做 fix_verification + delta（默认 composite）
+7. verdict memo PR 暂不合 main
+8. coordinator 批合 quorum memo；author 只做一次 final rebase
+9. D-40 carry 成功后进入 main 静默窗口并立即 squash
+```
+
+该 reconciled repair round 的预算只有一轮：若旧 invariant 仍未关闭，或出现真正新 P1（须给 `late_finding`、最小反例、为何前轮不可发现），状态转 `ESCALATED`，由用户选择继续一轮、取消/重派或改 scope；gater 不得自行横向续开下一批。承诺是“一轮后 merge 或上提”，不是保证一轮必修好。收口 memo 记录 author push 次数、gate 轮数、re-nail 次数、reopened finding、severity 分歧、mutation 杀伤率与 preflight 命中。
 
 ## 9. Merge（D-37）
 
@@ -177,7 +233,7 @@ helpers：`scratch` / `memo` / `trailer`（模型+effort 取会话实况，取�
 | 同席同刻单写者（链） | ①② | update-ref CAS + lease push |
 | 事件链单 parent/schema 合法/seat 对 ref | ①② | writer 构造；reader quarantine |
 | 相关远端 refs 已完整 fetch | ② | 写动作前比对 advertised/fetched tips |
-| verdict 引用 active claim + exact revision | ② | event validator + derive |
+| verdict 引用 active claim + exact revision；carry 仅窄机械谓词 | ② | event validator + exact candidate fingerprint + derive |
 | memo 指针已合入且 blob 匹配 | ② | verdict writer + derive 双检 |
 | gater≠author；同席一票 | ② | evaluator 集合语义 |
 | required 禁 silent skip；required+proceed 非法 | ①② | schema 排除组合 |
@@ -199,8 +255,9 @@ helpers：`scratch` / `memo` / `trailer`（模型+effort 取会话实况，取�
 
 ## 18. Phase（D-44）
 
-- **P0**（本批）：METHOD / DECISIONS / 三 schema / corpus BACKLOG。
+- **P0**（本批）：METHOD / DECISIONS / 三 schema / corpus BACKLOG #1–28。
 - **P1** 单竖切：static assignment → 同席 CLAIM → VERDICT → quorum → coordinator merge slot → squash receipt；事件 CLAIM/VERDICT/CANCEL；doctor/status/wait 基础形；activation 交付。
+- **P1 carry 扩展**：wire corpus #29 固定 memo-only 正例与 whitespace/message/non-memo 反例。
 - **P2**：动态 ASSIGN、跨席 HANDOFF（待仲裁域）、NOTE/presence、轮询合并、memo plumbing、scratch、standby、repair、consult。
 - **P3**：abacistopia 影子 round；全语料过绿删旧件；严格 base 松弛再议。
 - 不做：git notes、webhook/daemon、SQLite、表达式语言、author_concurrency>1、chain compaction、server-side enforcement。

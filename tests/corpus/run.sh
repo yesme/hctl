@@ -7,7 +7,7 @@ ROOT=$(cd "$(dirname "$0")" && pwd)
 cd "$ROOT/../.."
 export PYTHONPATH="$ROOT/lib${PYTHONPATH:+:$PYTHONPATH}"
 
-# Frozen expected set (assignment p1-corpus / BACKLOG #0a–#28). Do not glob-discover.
+# Frozen expected set (P0 #0a–#28 plus P1 carry #29). Do not glob-discover.
 CONCURRENCY_CASES=(
   chain-claim-mutex
   notes-union-antimutex
@@ -41,6 +41,7 @@ NUMBERED_CASES=(
   26-receipt-config-mismatch-reject
   27-streak-forward-env-reset
   28-jcs-vectors
+  29-regate-carry
 )
 
 # Cases that must exercise the real hctl binary when HCTL is available / required.
@@ -53,6 +54,7 @@ WIRE_CASES=(
   11-branch-pattern-disjoint
   12-dup-assignment-logical-id
   28-jcs-vectors
+  29-regate-carry
 )
 
 pass=0
@@ -156,7 +158,7 @@ for name in "${CONCURRENCY_CASES[@]}"; do
   run_one "$ROOT/concurrency/$name.sh"
 done
 
-echo "== cases #01-28 =="
+echo "== cases #01-29 =="
 for name in "${NUMBERED_CASES[@]}"; do
   run_one "$ROOT/cases/$name.sh"
 done
