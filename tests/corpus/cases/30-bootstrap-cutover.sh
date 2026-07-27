@@ -141,6 +141,58 @@ set -e
 assert_problem "$st3" UNRECORDED_MERGE error "demo2"
 assert_problem "$st3" ACKNOWLEDGED_BOOTSTRAP_HISTORY warning "demo"
 
+
+# --- 3.5) tree-reuse side candidate stays UNJUDGEABLE error (codex-pr72#P1-02) ---
+# Candidate created after the cutover whose tree equals the covered cutover
+# commit's tree: attribution must be ancestry-bound, never fall back to the old
+# first-parent OID and inherit its acknowledgment.
+cat > "$repo/.hctl/assignments/demo3.toml" <<'EOF3'
+schema_version = 1
+id = "demo3"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+[author]
+seat = "codex"
+branch_slug = "demo3"
+claim_timeout_seconds = 3600
+[[gates]]
+id = "review"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 3600
+[gates.requirement]
+seat = "grok"
+[gates.on_timeout]
+action = "escalate"
+[merge]
+method = "squash"
+EOF3
+git -C "$repo" fetch -q origin main
+git -C "$repo" reset -q --hard origin/main
+git -C "$repo" add .hctl/assignments/demo3.toml
+git -C "$repo" commit -q -m "add demo3"
+t3=$(git -C "$repo" rev-parse HEAD)
+git -C "$repo" push -q origin main
+side=$(git -C "$repo" commit-tree "$cutover^{tree}" -p "$t3" -m "demo3 candidate reusing cutover tree")
+git -C "$repo" push -q origin "$side:refs/heads/work/codex/demo3"
+git -C "$origin" update-ref refs/pull/3/head "$side"
+integration=$(git -C "$repo" commit-tree "$t3^{tree}" -p "$t3" -p "$side" -m "demo3 two-parent integration (#3)")
+git -C "$repo" push -q origin "$integration:refs/heads/main"
+
+set +e
+st35=$(corpus_hctl codex status --json 2>/dev/null)
+code=$?
+set -e
+[ "$code" -ne 0 ] || corpus_fail "tree-reuse candidate must be unhealthy"
+assert_problem "$st35" UNJUDGEABLE_MERGE error "demo3"
+printf '%s' "$st35" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+bad = [p for p in d.get("problems", []) if p["code"] == "ACKNOWLEDGED_BOOTSTRAP_HISTORY" and "demo3" in p["detail"]]
+assert not bad, bad
+' || corpus_fail "demo3 must never inherit bootstrap acknowledgment"
+
 # --- 4) rollback active→bootstrap: INVALID_CUTOVER fail-closed ---
 git -C "$repo" fetch -q origin main
 git -C "$repo" reset -q --hard origin/main

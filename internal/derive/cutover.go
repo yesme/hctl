@@ -3,6 +3,7 @@ package derive
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 
@@ -60,10 +61,20 @@ func (e Engine) detectCutover(ctx context.Context, snapshot *facts.Snapshot) (*b
 	}
 	defer batch.Close()
 
-	treeActive := map[string]bool{}
+	treeState := map[string]enforcementState{}
 	activeAt := make([]bool, len(history))
 	for i, entry := range history {
-		activeAt[i] = enforcementActive(batch, entry, treeActive)
+		state := e.enforcementStateAt(ctx, batch, entry, treeState)
+		if state == enforcementUnknown {
+			return nil, &facts.Problem{
+				Code: invalidCutoverCode, Severity: facts.SeverityError,
+				Detail: fmt.Sprintf(
+					"enforcement history is undecidable at commit %s: seats file exists but cannot be read or decoded; refusing to derive a cutover boundary",
+					entry.OID,
+				),
+			}
+		}
+		activeAt[i] = state == enforcementActive
 	}
 	k := 0
 	for k < len(activeAt) && activeAt[k] {
@@ -90,23 +101,49 @@ func (e Engine) detectCutover(ctx context.Context, snapshot *facts.Snapshot) (*b
 	return &bootstrapCutover{OID: history[k-1].OID, acknowledged: acknowledged}, nil
 }
 
-// enforcementActive reports whether the seats file at the commit proves
-// enforcement=active. Identical trees share one verdict; any unreadable state
-// proves nothing and is not-active.
-func enforcementActive(batch *gitx.Batch, entry facts.MainCommit, cache map[string]bool) bool {
-	if active, seen := cache[entry.Tree]; seen {
-		return active
+// enforcementState is a three-valued read of `.hctl/seats.toml` at a commit
+// (codex-pr72#P1-01): only a decodable seats file proves active or non-active,
+// and only a provably absent path counts as non-active (pre-.hctl genesis).
+// Everything else — unreadable object, wrong object type, undecodable TOML —
+// is unknown and must fail closed: an unknown can never be collapsed into a
+// boundary, because misreading one active commit as non-active would move the
+// cutover toward tip and widen the acknowledged set, or hide an older flip.
+type enforcementState int
+
+const (
+	enforcementNonActive enforcementState = iota
+	enforcementActive
+	enforcementUnknown
+)
+
+func (e Engine) enforcementStateAt(ctx context.Context, batch *gitx.Batch, entry facts.MainCommit, cache map[string]enforcementState) enforcementState {
+	if state, seen := cache[entry.Tree]; seen {
+		return state
 	}
-	active := false
+	state := enforcementUnknown
 	object, err := batch.Read(entry.OID + ":.hctl/seats.toml")
-	if err == nil && object.Type == "blob" {
+	switch {
+	case err == nil && object.Type == "blob":
 		var loose struct {
 			Enforcement string `toml:"enforcement"`
 		}
-		if _, err := toml.Decode(string(object.Data), &loose); err == nil {
-			active = loose.Enforcement == "active"
+		if _, decodeErr := toml.Decode(string(object.Data), &loose); decodeErr == nil {
+			if loose.Enforcement == "active" {
+				state = enforcementActive
+			} else {
+				state = enforcementNonActive
+			}
+		}
+	case err == nil:
+		// resolved to a non-blob object: undecidable
+	default:
+		// Distinguish "path does not exist at this commit" (defined non-active)
+		// from "path exists but the object store cannot produce it" (unknown).
+		listing, listErr := e.Repo.Output(ctx, "ls-tree", entry.OID, "--", ".hctl/seats.toml")
+		if listErr == nil && strings.TrimSpace(listing) == "" {
+			state = enforcementNonActive
 		}
 	}
-	cache[entry.Tree] = active
-	return active
+	cache[entry.Tree] = state
+	return state
 }

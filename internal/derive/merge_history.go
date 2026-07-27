@@ -101,17 +101,28 @@ func (e Engine) applyMergeHistory(ctx context.Context, snapshot *facts.Snapshot,
 			})
 			continue
 		}
+		// Integration attribution is ancestry-bound (codex-pr72#P1-02): tree
+		// equality alone must never place debt on a first-parent commit that
+		// predates the candidate. The anchor is the candidate fork point — the
+		// nearest first-parent ancestor of head that main can reach — and any
+		// integration commit must descend from it.
+		anchor, anchorOK := candidateAnchor(snapshot, head)
 		var merged *facts.MainCommit
-		for i := range snapshot.MainHistory {
-			entry := &snapshot.MainHistory[i]
-			if entry.Tree != headTree {
-				continue
+		if anchorOK {
+			for i := range snapshot.MainHistory {
+				entry := &snapshot.MainHistory[i]
+				if entry.Tree != headTree {
+					continue
+				}
+				if len(entry.Parents) == 0 {
+					continue
+				}
+				if !snapshot.IsAncestor(anchor, entry.OID) {
+					continue
+				}
+				merged = entry
+				break
 			}
-			if len(entry.Parents) == 0 {
-				continue
-			}
-			merged = entry
-			break
 		}
 		if merged == nil {
 			// A non-squash merge can retain the head commit without ever
@@ -282,10 +293,12 @@ func receiptMessageNamesAssignment(message, assignment string) bool {
 // first-parent ancestors) is surfaced as ACKNOWLEDGED_BOOTSTRAP_HISTORY at
 // warning severity: bounded history must not permanently trip WriteGuard, but
 // it is not repair — the obligation stays open and no receipt is fabricated.
-// Debt after the cutover (or debt that cannot be placed on the first-parent
-// line at all, mergedOID=="") keeps full error severity.
+// The acknowledgment allowlist is exactly {UNRECORDED_MERGE} (codex-27k §3.3
+// item 2; codex-pr72#P1-03): INVALID_RECEIPT and UNJUDGEABLE_MERGE keep their
+// original code at error severity on both sides of the boundary, as does any
+// debt that cannot be placed on the first-parent line (mergedOID=="").
 func (e Engine) markMergeDebt(result *Result, states []*ObligationState, cutover *bootstrapCutover, mergedOID, code, detail string) {
-	if cutover.covers(mergedOID) {
+	if code == "UNRECORDED_MERGE" && cutover.covers(mergedOID) {
 		for _, state := range states {
 			state.AuditDebt = acknowledgedBootstrapCode
 		}
@@ -317,4 +330,25 @@ func chainContains(chain *facts.Chain, oid string) bool {
 
 func structRevision(base, head string) protocol.Revision {
 	return protocol.Revision{Base: base, Head: head}
+}
+
+// candidateAnchor walks the candidate head down its first-parent line to the
+// nearest commit main can reach — the fork point every legitimate integration
+// commit must descend from. Unknown parents fail the walk and leave the debt
+// unplaced (fail-closed).
+func candidateAnchor(snapshot *facts.Snapshot, head string) (string, bool) {
+	seen := map[string]bool{}
+	oid := head
+	for oid != "" && !seen[oid] {
+		seen[oid] = true
+		if snapshot.Reachable[oid] {
+			return oid, true
+		}
+		parents := snapshot.CommitParents[oid]
+		if len(parents) == 0 {
+			return "", false
+		}
+		oid = parents[0]
+	}
+	return "", false
 }

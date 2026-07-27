@@ -93,8 +93,11 @@ func TestDetectCutoverShapes(t *testing.T) {
 	if cut, problem := detect(t, []string{"bootstrap", "active", "bootstrap", "active"}); cut != nil || problem == nil || problem.Code != invalidCutoverCode {
 		t.Fatalf("double flip must be INVALID_CUTOVER: %+v %+v", cut, problem)
 	}
-	if cut, problem := detect(t, []string{"garbage", "active", "active"}); cut == nil || problem != nil {
-		t.Fatalf("undecodable ancestor counts as not-active below the flip: %+v %+v", cut, problem)
+	if cut, problem := detect(t, []string{"garbage", "active", "active"}); cut != nil || problem == nil || problem.Code != invalidCutoverCode {
+		t.Fatalf("undecodable seats file must be INVALID_CUTOVER, never a boundary: %+v %+v", cut, problem)
+	}
+	if cut, problem := detect(t, []string{"none", "bootstrap", "active"}); cut == nil || problem != nil {
+		t.Fatalf("provably absent seats path stays a defined non-active happy path: %+v %+v", cut, problem)
 	}
 }
 
@@ -161,5 +164,74 @@ func TestMarkMergeDebtAcknowledgesBootstrapHistory(t *testing.T) {
 	noCut.Complete = true
 	if err := noCut.WriteGuard(); err == nil {
 		t.Fatal("without a cutover nothing is acknowledged")
+	}
+}
+
+// deleteSeatsBlob removes the loose object of `.hctl/seats.toml` at the given
+// history entry, reproducing codex-pr72#P1-01's real-object mutations.
+func deleteSeatsBlob(t *testing.T, repo *gitx.Repo, oid string) {
+	t.Helper()
+	out, err := repo.Output(context.Background(), "rev-parse", oid+":.hctl/seats.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob := strings.TrimSpace(out)
+	path := filepath.Join(repo.CommonDir, "objects", blob[:2], blob[2:])
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDetectCutoverUnknownObjectFailsClosed(t *testing.T) {
+	// Mutation A (boundary widening): deleting the mid active blob must not
+	// move the cutover to tip — it must refuse to derive any boundary.
+	repo, history := initCutoverRepo(t, []string{"bootstrap", "active", "active"})
+	deleteSeatsBlob(t, repo, history[1].OID) // mid active
+	engine := Engine{Repo: repo}
+	cut, problem := engine.detectCutover(context.Background(), &facts.Snapshot{MainHistory: history})
+	if cut != nil || problem == nil || problem.Code != invalidCutoverCode {
+		t.Fatalf("unreadable active blob must fail closed: %+v %+v", cut, problem)
+	}
+
+	// Mutation B (hidden flip): deleting the root active blob must not silence
+	// the multi-flip INVALID_CUTOVER.
+	repo2, history2 := initCutoverRepo(t, []string{"active", "bootstrap", "active"})
+	deleteSeatsBlob(t, repo2, history2[2].OID) // root active
+	engine2 := Engine{Repo: repo2}
+	cut2, problem2 := engine2.detectCutover(context.Background(), &facts.Snapshot{MainHistory: history2})
+	if cut2 != nil || problem2 == nil || problem2.Code != invalidCutoverCode {
+		t.Fatalf("unreadable object must not hide an older flip: %+v %+v", cut2, problem2)
+	}
+}
+
+func TestMarkMergeDebtAllowlist(t *testing.T) {
+	engine := Engine{}
+	cut := &bootstrapCutover{OID: "c", acknowledged: map[string]bool{"inside": true}}
+	rows := []struct {
+		code     string
+		merged   string
+		wantCode string
+		wantErr  bool
+	}{
+		{"UNRECORDED_MERGE", "inside", acknowledgedBootstrapCode, false},
+		{"UNRECORDED_MERGE", "outside", "UNRECORDED_MERGE", true},
+		{"UNRECORDED_MERGE", "", "UNRECORDED_MERGE", true},
+		{"INVALID_RECEIPT", "inside", "INVALID_RECEIPT", true},
+		{"INVALID_RECEIPT", "outside", "INVALID_RECEIPT", true},
+		{"INVALID_RECEIPT", "", "INVALID_RECEIPT", true},
+		{"UNJUDGEABLE_MERGE", "inside", "UNJUDGEABLE_MERGE", true},
+		{"UNJUDGEABLE_MERGE", "outside", "UNJUDGEABLE_MERGE", true},
+		{"UNJUDGEABLE_MERGE", "", "UNJUDGEABLE_MERGE", true},
+	}
+	for _, row := range rows {
+		state := &ObligationState{}
+		result := &Result{Complete: true}
+		engine.markMergeDebt(result, []*ObligationState{state}, cut, row.merged, row.code, "d")
+		if state.AuditDebt != row.wantCode || len(result.Problems) != 1 || result.Problems[0].Code != row.wantCode {
+			t.Fatalf("%s/%s: got debt=%q problems=%+v", row.code, row.merged, state.AuditDebt, result.Problems)
+		}
+		if err := result.WriteGuard(); (err != nil) != row.wantErr {
+			t.Fatalf("%s/%s: WriteGuard=%v want err=%v", row.code, row.merged, err, row.wantErr)
+		}
 	}
 }
