@@ -1,0 +1,46 @@
+# P1 re-gate carry：仅在候选补丁逐字节等价、且 base 只因 memo 合入前移时复用旧绿票。
+# 授权链：用户 2026-07-27「接下来是p1-regate-carry（codex author，patch 等价 carry），
+# 你写，claude+grok来gate」；设计基线为 memory/codex-2026-07-27k.md §3.1。
+# v1 fail-closed：不用 whitespace-insensitive `git patch-id`；候选 commit 的 author、完整 message
+# 与 exact tree delta 共同入 fingerprint。仅 `memory/**` 的 base advance 可 carry；assignment、
+# gate obligation、PR、branch 必须相同，且只能 carry COMPLETE+APPROVE、未被更新 verdict 覆盖的绿票。
+# 串行前置 p1-corpus-terminal 已由 PR #58 合入；这里保持 needs=[]，因为 bootstrap squash 尚无
+# 可重放 Hctl receipt，写结构 needs 会把本任务误锁在 blocked_needs。
+
+schema_version = 1
+id = "p1-regate-carry"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "codex"
+branch_slug = "p1-regate-carry"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "adversarial"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "grok"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "spec-conformance"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "claude"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
