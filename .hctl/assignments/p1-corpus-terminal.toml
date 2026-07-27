@@ -1,0 +1,46 @@
+# Terminal closure assignment：接手 PR #38 内容收口 corpus 验收（codex-27k §2.1 P1-02 residual）。
+# 授权链（D-38 级④，用户 2026-07-27 原话）：「drop #38，然后由codex作为author重新做一遍」
+# →「或者由codex接手作为author，claude/grok来gate」→「这样更加合理 - 也更快」。
+# 同批 CANCEL：p1-corpus-wire assignment（author=grok）随本文件删除而撤销——终局 round 预算
+# 耗尽转 ESCALATED（codex-27l/PR #56），用户裁定取消重派。
+# 起点：dead branch work/grok/p1-corpus-wire @ 31801da（tree 4a92fc4）内容接手，
+# grok 归因以 Co-authored-by 保留；P1-03 已 CLOSED，残余面=P1-02（#6 per-vector fixture 隔离）。
+# 注：原 finding owner（codex）现为 author；closure 由两 gate 按 corpus DoD（27s §3.2）验收。
+
+schema_version = 1
+id = "p1-corpus-terminal"
+kind = "change"
+needs = []
+base_ref = "refs/heads/main"
+
+[author]
+seat = "codex"
+branch_slug = "p1-corpus-terminal"
+claim_timeout_seconds = 172800
+
+[[gates]]
+id = "adversarial"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "grok"
+
+[gates.on_timeout]
+action = "escalate"
+
+[[gates]]
+id = "spec-conformance"
+mode = "required"
+threshold = "P1"
+claim_timeout_seconds = 86400
+
+[gates.requirement]
+seat = "claude"
+
+[gates.on_timeout]
+action = "escalate"
+
+[merge]
+method = "squash"
