@@ -68,8 +68,26 @@ def jcs(value: Any) -> str:
     raise TypeError(f"JCS unsupported type: {type(value)}")
 
 
+def _reject_lone_surrogates(value: Any, path: str = "$") -> None:
+    """I-JSON / structural corruption: lone UTF-16 surrogates are rejected (D-33/D-39)."""
+    if isinstance(value, str):
+        for i, ch in enumerate(value):
+            o = ord(ch)
+            if 0xD800 <= o <= 0xDFFF:
+                raise ValueError(f"lone surrogate U+{o:04X} at {path}[{i}]")
+        return
+    if isinstance(value, list):
+        for i, item in enumerate(value):
+            _reject_lone_surrogates(item, f"{path}[{i}]")
+        return
+    if isinstance(value, dict):
+        for k, v in value.items():
+            _reject_lone_surrogates(k, f"{path}.key")
+            _reject_lone_surrogates(v, f"{path}.{k}")
+
+
 def parse_i_json(text: str) -> Any:
-    """Parse JSON; reject duplicate keys (no silent last-wins)."""
+    """Parse JSON; reject duplicate keys, lone surrogates, non-I-JSON (no silent last-wins)."""
 
     def object_pairs(pairs):
         seen = set()
@@ -81,7 +99,18 @@ def parse_i_json(text: str) -> Any:
             out[k] = v
         return out
 
-    return json.loads(text, object_pairs_hook=object_pairs)
+    # Reject raw lone-surrogate escapes before json.loads coerces them.
+    if re.search(r"\\u[dD][89a-fA-F][0-9a-fA-F]{2}", text):
+        # paired surrogates are also rejected on identity path (ASCII-only tokens);
+        # any surrogate escape is structural corruption for hctl identity/events.
+        raise ValueError("surrogate escape in JSON text")
+
+    try:
+        obj = json.loads(text, object_pairs_hook=object_pairs)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"non-I-JSON: {e}") from e
+    _reject_lone_surrogates(obj)
+    return obj
 
 
 def validate_identity_token(s: str) -> None:
